@@ -1,12 +1,25 @@
+
+
+
+
+
+
+
 // Load needed packages -----------------------------------------------------------------------
 #include <SoftwareSerial.h>
 #include "RTClib.h" //Time
 #include "SdFat.h" //SD-card
 #include "SPI.h" //needed by SD library
+#include <LiquidCrystal.h>
 //#include <Wire.h>
 
 
 // Create needed variables --------------------------------------------------------------------
+
+// LCD pins
+const int rs = 2, en = 3, d4 = 4, d5 = 5, d6 = 6, d7 = 7;
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+
 //Time
 RTC_DS1307 rtc; //Defines the real Time Object
 
@@ -18,7 +31,7 @@ const int chipSelect = 10; //Select the pin the SD card uses for communication
 SdFile file; //Variable for the logging of data
 char filename[] = "yymmdd.TXT";
 char date_char[] = "yy/mm/dd HH:MM:SS";
-
+char lcd_date[] = "dd.mm HH:MM:SS";
 
 //Variable for USB connection
 #define ECHO_TO_SERIAL 1 //check if Arduino is connected via USB (aka to a PC)
@@ -44,23 +57,17 @@ int CheckSum_Low = 0x53; //live Data
 byte out_bytes[7] = {DLE, RD, VariableID, DLE, EoF, CheckSum_High, CheckSum_Low};
 
 // other input variables ------------------------------------------------
-int intervall_s = 0;
-int intervall_min = 1;
+int intervall_s = 1;
+int intervall_min = 0;
 unsigned int baudrate = 38400;
 long min_break = 400L;
 
 //pins -----------------------------------
 //pins used for Rx and Tx
-int Rx = 7;
-int Tx = 2;
+int Rx = 8;
+int Tx = 9;
 SoftwareSerial Serial2(Rx, Tx); //rx tx
 
-//control Pins to select port of serial expander
-int s1 = 5;                                           //Arduino pin 6 to control pin S1
-int s2 = 4;                                           //Arduino pin 5 to control pin S2
-int s3 = 3;                                           //Arduino pin 4 to control pin S3
-int port = 1;                                         //what port to open
-int n_ports = 8;    // number of ports
 
 
 //input variables --------------------------
@@ -80,6 +87,7 @@ byte temp_bytes[4];
 // Setup ----------------------------------------------------------------------
 void setup(){
 // establish serial communication -------------------------------------
+  lcd.begin(16, 2);
       Serial2.begin(baudrate);
       Serial2.flush();
  // datetime -----------------------------------
@@ -91,73 +99,52 @@ void setup(){
 
   if (! rtc.isrunning()) {
     Serial.println("RTC is NOT running!");
-//    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+   // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 //    Serial.println("RTC adjusted!");
   }
   
 //output pins
   //pinMode(chipSelect, OUTPUT); //Reserve pin 10 (chip select) as an output, dont use it for other parts of circuit
-  pinMode(s1, OUTPUT);                                //Set the digital pin as output
-  pinMode(s2, OUTPUT);                                //Set the digital pin as output
-  pinMode(s3, OUTPUT);                                //Set the digital pin as output
   pinMode(chipSelect, OUTPUT);
 
 //SD -------------------------------------------------------
    #if ECHO_TO_SERIAL //if USB connection exists do the following:
    Serial.begin(baudrate); //Activate Serial Monitor
    #endif ECHO_TO_SERIAL
-   
-//  if(sd.begin(chipSelect, SPI_HALF_SPEED)){
-//  //check_SD();
-//  get_filename();//dateiname ist yymmdd.txt und wird hier aktualisiert
-//  write_header();
-//  }
+  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 }
 
 // loop -----------------------------------------------------
 void loop(){
   if(sd.begin(chipSelect, SPI_HALF_SPEED)){
-  if(port == 1){
+
   get_filename();
   
   write_header();
-  }
+  
   
   if(file.open(filename, O_WRITE | O_APPEND)){
   
    // time -------------------------------------
   //SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
 
-  //rtc.begin(DateTime(F(__DATE__), F(__TIME__)));
-  DateTime now1 = rtc.now(); //Get the current time
-    //open right port
-  open_port();
-  //print port number
-  if(port > 1){
-    #if ECHO_TO_SERIAL 
-    Serial.print("p");
-    //irgendwie kommt Sensor x erst bei port x-1 an
-    Serial.print(port-1);
-    Serial.print(": ");
-    #endif ECHO_TO_SERIAL 
-  }
-  // print Datetime only when port is 1
-  if(port == 1){
+    DateTime now1 = rtc.now(); //Get the current time
+  
+  // print Datetime 
     // Warten
     if(intervall_min > 0){
-    long pause = 1000L*60L*(intervall_min) - now1.second()*1000L;
+    long pause = 1000L*60L*(intervall_min) - now1.second()*1000L - 2*1000L;
     delay(pause);
     }
     if(intervall_s > 0){
-      long pause = 1000L*intervall_s - n_ports*min_break;
+      long pause = 1000L*intervall_s;
       if(pause > 0){
       delay(pause);
       }
     }
-
     DateTime now = rtc.now(); //Get the current time
     sprintf(date_char,"%02d/%02d/%02d %02d:%02d:%02d", now.year() % 100, now.month(), now.day(),  now.hour(), now.minute(), now.second());
-   
+    
     file.println("");
     file.print(date_char);
     file.print(";");
@@ -168,7 +155,10 @@ void loop(){
     Serial.print(date_char);
     Serial.print(";");
     #endif ECHO_TO_SERIAL
-  }
+
+    sprintf(lcd_date," %02d.%02d %02d:%02d:%02d ", now.day(), now.month(),  now.hour(), now.minute(), now.second());
+    lcd.setCursor(0,0);
+    lcd.print(lcd_date); 
 // sending bytes ------------------------------------------- 
   Serial2.write(out_bytes,(sizeof(out_bytes)));
 
@@ -200,56 +190,44 @@ void loop(){
   for(int i = 0; i <= (sizeof(in_bytes)); i++){
     in_bytes[i] = 0;
   }
-  if(port > 1){
    //signal an PC console ------------------------------------------
    #if ECHO_TO_SERIAL
     Serial.print("CO2: ");
-    Serial.print(CO2,2);
-    Serial.print(", temp :");
+    Serial.print(CO2,0);
+    Serial.print(", temp:");
     Serial.print(temp,2);
     Serial.print(", ");     
   #endif ECHO_TO_SERIAL
 
+    lcd.setCursor(0,1);
+    lcd.print("CO2:");
+    if(CO2 < 1000){
+      lcd.print(" ");
+    }
+    lcd.print(CO2,0);
+    lcd.print(" T:");
+    lcd.print(temp,2);    
+
   //Werte in logfile schreiben ------------------------------------------
-    file.print(CO2, 2);
+    file.print(CO2, 0);
     file.print(";");
     file.print(temp, 2);
-          if(port < n_ports){ 
-          file.print(";");
-      }
-  }
+
       file.close();
   // wenn kein serial2 available
   }else{
-    if(port > 1){
       file.print("NA;NA");
-
-        if(port < n_ports){ 
-            file.print(";");
-        }
-      }
       file.close();
-    
+
+    lcd.setCursor(0,1);
+    lcd.print("*no Data signal*");
   }
-
-  //kurz Warten -----------------------------------------------------------
-    delay(min_break);
-
-  // change port to next number
-  if(port < n_ports){
-  port++;
-}else{
-  port = 1;
-}
   }
   }else{
-    port = 2;
-    open_port();
-    //check_SD();
-    delay(200);
-    port = 1;
-    open_port();
-    //delay(100);
+    lcd.setCursor(0,0);
+    lcd.print(" *** no SD ***  ");
+    lcd.setCursor(0,1);
+    lcd.print(" ** available **");
   }
 }
 
@@ -271,25 +249,6 @@ void loop(){
 //  *time = FAT_TIME(now.hour(), now.minute(), now.second());
 //}
 
-void open_port() {                                  //this function controls what UART port is opened.
-
-  //if (port < 1 || port > 8)port = 1;                //if the value of the port is within range (1-8) then open that port. If it’s not in range set it to port 1
-  int port_num = port - 1;                                        //the multiplexer used on the serial port expander refers to its ports as 0-15, but we have them labeled 1-16 by subtracting one from the port to be opened we correct for this.
-
-  digitalWrite(s1, bitRead(port_num, 0));               //Here we have two commands combined into one.
-  digitalWrite(s2, bitRead(port_num, 1));               //The digitalWrite command sets a pin to 1/0 (high or low)
-  digitalWrite(s3, bitRead(port_num, 2));               //The bitRead command tells us what the bit value is for a specific bit location of a number
-  delay(20);                                         //this is needed to make sure the channel switching event has completed
-}
-
-//funktion to check if SD file is available ----------------------------------------------------
-//void check_SD() {
-//   pinMode(chipSelect, OUTPUT);
-//   sd.begin(chipSelect, SPI_HALF_SPEED);
-////   if (!sd.begin(chipSelect, SPI_HALF_SPEED)) { // Zugriff auf SD?
-////    sd.initErrorHalt();
-////    }
-// }
 
 void get_filename(){
 
@@ -310,14 +269,7 @@ void write_header() {
   if(!sd.exists(filename)){
     file.open(filename, O_WRITE | O_CREAT | O_EXCL | O_APPEND);
     
-    file.print("date");
-    //tiefen 1 bis n_ports
-    for(int i = 1; i <= (n_ports-1); i++){
-      file.print(";CO2_tiefe");
-      file.print(i);
-      file.print(";temp_tiefe");
-      file.print(i);
-    }
+    file.print("date; CO2; temp");
     file.close();
   }
 }
