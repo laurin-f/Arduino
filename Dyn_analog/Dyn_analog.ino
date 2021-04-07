@@ -1,41 +1,149 @@
-///////////////////////////////////////////////////////////////////////////////////////////////
-// This script is currently able to monitor soil moisture content and co2-concentrations     //
-// while being connected to a pc via USB or to an external power supply.                     //
-// The measuring, converting and logging of the observed data is all implemented in this     //
-// script.                                                                                   //
-///////////////////////////////////////////////////////////////////////////////////////////////
-
 
 // Load needed packages -----------------------------------------------------------------------
 #include "RTClib.h" //Time
-#include "SD.h" //SD-card
+#include "SdFat.h" //SD-card
 #include "SPI.h" //needed by SD library
 
 
 // Create needed variables --------------------------------------------------------------------
+
+
 //Time
-RTC_Millis rtc; //Defines the real Time Object
+RTC_DS1307 rtc; //Defines the real Time Object
 
 //SD variables
+SdFat sd;
+
+// O2 variables
+const float VRefer = 5;       // voltage of adc reference
+const int pinAdc   = A0;
+
+ 
 const int chipSelect = 10; //Select the pin the SD card uses for communication
   //if Pin 10 is used for something else the SD library will not work
-File file; //Variable for the logging of data
-
-//Variables for the measured parameters
-//Select the Pin which receives the input from the sensor
-int co2Pin = A0;
-//Variables for conversion from electrical signals to % or ppm
-int co2Signal = 0;
-int co2_con = 0;
-
-
-String error_msg, error;
-char filename[] = "CO2_log.txt";
-int log_intervall_secs = 1;
+SdFile file; //Variable for the logging of data
+char filename[] = "yymmdd.TXT";
+char date_char[] = "yy/mm/dd HH:MM:SS";
 
 //Variable for USB connection
 #define ECHO_TO_SERIAL 1 //check if Arduino is connected via USB (aka to a PC)
   //if False the lines regarding the Serial Monitor are not executed
+
+
+// other input variables ------------------------------------------------
+int intervall_s = 1;
+int intervall_min = 0;
+unsigned int baudrate = 38400;
+long min_break = 400L;
+
+
+
+
+
+// Setup ----------------------------------------------------------------------
+void setup(){
+ // datetime -----------------------------------
+
+   if (! rtc.begin()) {
+    Serial.println("Couldn't find RTC");
+    while (1);
+  }
+
+  if (! rtc.isrunning()) {
+//    Serial.println("RTC is NOT running!");
+//    Uhrzeit einmalig adjusten dann auskommentieren
+//    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+//    Serial.println("RTC adjusted!");
+  }
+  
+//output pins
+  //pinMode(chipSelect, OUTPUT); //Reserve pin 10 (chip select) as an output, dont use it for other parts of circuit
+  pinMode(chipSelect, OUTPUT);
+  pinMode(2, OUTPUT);
+  pinMode(3, OUTPUT);
+//SD -------------------------------------------------------
+   #if ECHO_TO_SERIAL //if USB connection exists do the following:
+   Serial.begin(baudrate); //Activate Serial Monitor
+   #endif ECHO_TO_SERIAL
+}
+
+// loop -----------------------------------------------------
+void loop(){
+  if(sd.begin(chipSelect, SPI_HALF_SPEED)){
+
+  get_filename();
+  
+  write_header();
+  
+
+  
+  if(file.open(filename, O_WRITE | O_APPEND)){
+  
+   // time -------------------------------------
+  SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
+
+    DateTime now1 = rtc.now(); //Get the current time
+  
+  // print Datetime 
+    // Warten
+    if(intervall_min > 0){
+    long pause = 1000L*60L*(intervall_min) - now1.second()*1000L - 2*1000L;
+    delay(pause);
+    }
+    if(intervall_s > 0){
+      long pause = 1000L*intervall_s;
+      if(pause > 0){
+      delay(pause);
+      }
+    }
+    DateTime now = rtc.now(); //Get the current time
+    sprintf(date_char,"%02d/%02d/%02d %02d:%02d:%02d", now.year() % 100, now.month(), now.day(),  now.hour(), now.minute(), now.second());
+
+// relais 1 off and on times
+    if(now.second() <= 10){
+      digitalWrite(2,LOW);
+    }else{
+      digitalWrite(2,HIGH);
+    }
+    // relais 2 off and on time
+  if(now.second() > 11 & now.second() < 15){
+      digitalWrite(3,LOW);
+    }else{
+      digitalWrite(3,HIGH);
+    }
+    file.println("");
+    file.print(date_char);
+    file.print(";");
+    //file.flush();
+  
+  #if ECHO_TO_SERIAL
+    Serial.println("");
+    Serial.print(date_char);
+    Serial.print(";");
+    #endif ECHO_TO_SERIAL
+
+
+    // read CO2 Anaolog signal
+    float CO2 = readCO2();
+
+
+   //signal an PC console ------------------------------------------
+   #if ECHO_TO_SERIAL
+    Serial.print(" CO2: ");
+    Serial.print(CO2,0);   
+  #endif ECHO_TO_SERIAL
+
+
+  //Werte in logfile schreiben ------------------------------------------
+    file.print(CO2, 0);
+    file.close();
+  }
+  }
+}
+
+
+
+//functions---------------------------------------------------------------------------------------------
 
 
 // Function to set the timestamp of the DataFile that was created on the SD card -------------
@@ -50,139 +158,6 @@ void dateTime(uint16_t* date, uint16_t* time) {
 }
 
 
-// Setup the logging File and the Serial Monitor ---------------------------------------------
-void setup() {
-   rtc.begin(DateTime(F(__DATE__), F(__TIME__))); //Create the starting point for the timestamp of every measurement
-
-   #if ECHO_TO_SERIAL //if USB connection exists do the following:
-   Serial.begin(9600); //Activate Serial Monitor
-
-  //Initialize SD card with chipSelect connected to pin 4
-  Serial.print("\nInitializing SD card..."); //print to Serial MOnitor
-  pinMode(chipSelect, OUTPUT); //Reserve pin 10 (chip select) as an output, dont use it for other parts of circuit
-  if (!SD.begin(chipSelect)) { //check if SD card is available and can communicate to Arduino
-    Serial.println("Card failed, or not present");
-  }
-  Serial.println("Card initialized.");
-  #endif ECHO_TO_SERIAL
-
-  //Create a new entry to the file in order to log data
-  File file = SD.open(filename, FILE_WRITE);
-  if (file) {
-    file.println("\nNew Log started!");
-    file.println("Date;Time;co2Sensor;co2_con");
-    file.close(); //Data is not written until the connection is closed
-
-    #if ECHO_TO_SERIAL //if USB connection exists do the following:
-    Serial.print("Logging to: ");
-    Serial.println(filename);
-    Serial.println("\nNew Log started!");
-    Serial.println("Date;Time;co2Sensor;co2_con");
-    #endif ECHO_TO_SERIAL
-  } else {
-    file.println("Couldn't open log file in void setup");
-    file.close(); //Data is not written until the connection is closed
-    #if ECHO_TO_SERIAL //if USB connection exists do the following:
-    Serial.println("Couldn't open log file in void setup");
-    #endif ECHO_TO_SERIAL
-      get_filename();//dateiname ist yymmdd.txt und wird hier aktualisiert
-      write_header();
-  }
-  
-  // Create a new file after every restart
-  //doesnt work at the moment
-  //  char filename[] = "Moist00.txt";
-  //  Serial.println(SD.exists(filename));
-  //  for (uint8_t i = 0; i < 100; i++){
-  //    filename[5] = i/10 + '0';
-  //    filename[6] = i%10 + '0';
-  //    Serial.print(filename);
-  //    Serial.print(" exists: ");
-  //    Serial.println(SD.exists(filename));
-  //    if (!SD.exists(filename)) {
-  //      //only open a new file if it doesnt exist
-  //      file = SD.open(filename, FILE_WRITE);
-  //      //Serial.println(filename);
-  //      //Serial.println("File exists");
-  //      break; //leave the loop!
-  //      }
-  //      else {
-  //        i = i+1;
-  //      }
-  //  }
-}
-
-
-// Loop to continously observe the measurements ---------------------------------------------
-void loop() {
-  get_filename();//dateiname ist yymmdd.txt und wird hier aktualisiert
-  write_header();
-  //as long as the script is running redo the following: 
-  SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
-  
-  co2Signal = analogRead(co2Pin); //Get the input of the CO2 Sensor
-  float co2Volt = co2Signal * (5.0 / 1023.0); //translate the CO2 input into an electrical input
-  co2_con = ((co2Volt - 0.4) / 1.6) * 5000; //calculate the ppm con via the electrical signal
-  printValues(); //print all inputs and calculated values 
-  delay(log_intervall_secs * 1000); //repeat all of that every minute (one second == 1000 milliseconds/millis)
-}
-
-
-// Funcion to print values to the Serial Monitor and to the logging file --------------------
-void printValues () {
-  //rtc.begin(DateTime(F(__DATE__), F(__TIME__)));
-  DateTime now = rtc.now(); //Get the current time
-  File file = SD.open(filename, FILE_WRITE); //
-  
-  if (file) {
-    file.print(now.year(), DEC);
-    file.print("/");
-    file.print(now.month(), DEC);
-    file.print("/");
-    file.print(now.day(), DEC);
-    file.print(";");
-    file.print(now.hour(), DEC);
-    file.print(":");
-    file.print(now.minute(), DEC);
-    file.print(":");
-    file.print(now.second(), DEC);
-    file.print(";");
-//    file.print(co2Signal);
-//    file.print(";");
-    file.println(co2_con);
-    file.close();
-#if ECHO_TO_SERIAL //if USB connection exists do the following:
-    Serial.print(now.year(), DEC);
-    Serial.print('/');
-    Serial.print(now.month(), DEC);
-    Serial.print('/');
-    Serial.print(now.day(), DEC);
-    Serial.print(';');
-    Serial.print(now.hour(), DEC);
-    Serial.print(':');
-    Serial.print(now.minute(), DEC);
-    Serial.print(':');
-    Serial.print(now.second(), DEC);
-    Serial.print(";");
-//    Serial.print(co2Signal);
-//    Serial.print(";");
-    Serial.println(co2_con);
-#endif //ECHO_TO_SERIAL
-  }
-  else { //print error message if logging file couldnt be opened
-    error = "error opening";
-    error_msg = error + filename;
-    Serial.println(error_msg);
-  }
-}
-
-//functions --------------------------------------------
-
-void check_SD() {
-   pinMode(chipSelect, OUTPUT);
-   SD.begin(chipSelect);
-   }
-
 void get_filename(){
 
 DateTime now = rtc.now();
@@ -193,17 +168,43 @@ filename[2] = now.month()/10 + '0'; //To get 1st digit from month()
 filename[3] = now.month()%10 + '0'; //To get 2nd digit from month()
 filename[4] = now.day()/10 + '0'; //To get 1st digit from day()
 filename[5] = now.day()%10 + '0'; //To get 2nd digit from day()
-filename[6] = now.hour()/12 + '0'; //To get 1st digit from day()
+//filename[6] = now.hour()/12 + '0'; //To get 1st digit from day()
 //filename[7] = now.hour()%10 + '0'; //To get 2nd digit from day()
 
 }
 
 void write_header() {
-  if(!SD.exists(filename)){
-    File file = SD.open(filename, FILE_WRITE);
+  if(!sd.exists(filename)){
+    file.open(filename, O_WRITE | O_CREAT | O_EXCL | O_APPEND);
     
-    file.print("date");
-    file.println("CO2_ppm");
+    file.print("date; CO2_ppm");
     file.close();
   }
+}
+
+float readVout()
+{
+    long sum = 0;
+    for(int i=0; i<32; i++)
+    {
+        sum += analogRead(pinAdc);
+    }
+    // >>= bitshift nach rechts entspricht eine division durch 2^x also in diesem fall 2^5 also 32
+    sum >>= 5;
+    //Analog to Digital Converter (ADC): Analog V measured = ADC reading * System Voltage (5V) / Resolution of ADC (10 bits = 2^10 also 1023)
+    float MeasuredVout = sum * (VRefer / 1023.0);
+    
+  
+    return MeasuredVout;
+}
+ 
+float readCO2()
+{
+    // Vout samples are with reference to 3.3V
+    float Vout = readVout();
+
+    // Sauerstoffkonz Luft 20.95%
+    // Gemessenes Analog Signal 1.325V
+    float Concentration = ((Vout - 0.4) / 1.6) * 5000;
+    return Concentration;
 }

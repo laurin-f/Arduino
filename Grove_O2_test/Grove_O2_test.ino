@@ -23,7 +23,7 @@ void loop()
     Serial.print("Vout =");
  
     Vout = readO2Vout();
-    Serial.print(Vout);
+    Serial.print(Vout,4);
     Serial.print(" V, Concentration of O2 is ");
     Serial.println(readConcentration());
     delay(500);
@@ -38,11 +38,9 @@ float readO2Vout()
     }
  
     sum >>= 5;
- 
+
     float MeasuredVout = sum * (VRefer / 1023.0);
     
-    //long co2Signal = analogRead(pinAdc); //Get the input of the CO2 Sensor
-   // float MeasuredVout = co2Signal * (VRefer / 1023.0);
   
     return MeasuredVout;
 }
@@ -54,7 +52,6 @@ float readConcentration()
  
     //float Concentration = FmultiMap(MeasuredVout, VoutArray,O2ConArray, 6);
     //when its output voltage is 2.0V,
-    float Concentration = MeasuredVout * 0.21 / 2.0;
-    float Concentration_Percentage=Concentration*100;
-    return Concentration_Percentage;
+    float Concentration = MeasuredVout / 1.325 * 20.95 ;
+    return Concentration;
 }

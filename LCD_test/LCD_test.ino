@@ -5,6 +5,7 @@
 
 
 
+
 // Load needed packages -----------------------------------------------------------------------
 #include <SoftwareSerial.h>
 #include "RTClib.h" //Time
@@ -26,6 +27,12 @@ RTC_DS1307 rtc; //Defines the real Time Object
 //SD variables
 SdFat sd;
 
+// O2 variables
+const float VRefer = 5;       // voltage of adc reference
+const int pinAdc   = A0;
+
+
+ 
 const int chipSelect = 10; //Select the pin the SD card uses for communication
   //if Pin 10 is used for something else the SD library will not work
 SdFile file; //Variable for the logging of data
@@ -98,8 +105,9 @@ void setup(){
   }
 
   if (! rtc.isrunning()) {
-    Serial.println("RTC is NOT running!");
-   // rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
+//    Serial.println("RTC is NOT running!");
+//    Uhrzeit einmalig adjusten dann auskommentieren
+//    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 //    Serial.println("RTC adjusted!");
   }
   
@@ -111,7 +119,6 @@ void setup(){
    #if ECHO_TO_SERIAL //if USB connection exists do the following:
    Serial.begin(baudrate); //Activate Serial Monitor
    #endif ECHO_TO_SERIAL
-  rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
 }
 
 // loop -----------------------------------------------------
@@ -156,12 +163,15 @@ void loop(){
     Serial.print(";");
     #endif ECHO_TO_SERIAL
 
-    sprintf(lcd_date," %02d.%02d %02d:%02d:%02d ", now.day(), now.month(),  now.hour(), now.minute(), now.second());
+    //sprintf(lcd_date," %02d.%02d %02d:%02d:%02d ", now.day(), now.month(),  now.hour(), now.minute(), now.second());
+    sprintf(lcd_date,"%02d:%02d:%02d", now.hour(), now.minute(), now.second());
     lcd.setCursor(0,0);
     lcd.print(lcd_date); 
+
+    // read O2 Anaolog signal
+    float O2 = readConcentration();
 // sending bytes ------------------------------------------- 
   Serial2.write(out_bytes,(sizeof(out_bytes)));
-
 // receiving bytes -------------------------------------------------
    if(Serial2.available()){
     //so lange Serial2 available werden bite für byte abgerufen
@@ -190,15 +200,23 @@ void loop(){
   for(int i = 0; i <= (sizeof(in_bytes)); i++){
     in_bytes[i] = 0;
   }
+
+
    //signal an PC console ------------------------------------------
    #if ECHO_TO_SERIAL
     Serial.print("CO2: ");
     Serial.print(CO2,0);
+    Serial.print("O2: ");
+    Serial.print(O2,2); 
     Serial.print(", temp:");
     Serial.print(temp,2);
     Serial.print(", ");     
   #endif ECHO_TO_SERIAL
 
+    lcd.setCursor(8,0);
+    lcd.print(" O:");
+    lcd.print(O2,2); 
+    
     lcd.setCursor(0,1);
     lcd.print("CO2:");
     if(CO2 < 1000){
@@ -211,14 +229,21 @@ void loop(){
   //Werte in logfile schreiben ------------------------------------------
     file.print(CO2, 0);
     file.print(";");
+    file.print(O2, 2);
+    file.print(";");
     file.print(temp, 2);
 
       file.close();
   // wenn kein serial2 available
   }else{
-      file.print("NA;NA");
+      file.print("NA;");
+      file.print(O2, 2);
+      file.print(";NA");
       file.close();
 
+    lcd.setCursor(8,0);
+    lcd.print(" O:");
+    lcd.print(O2,2); 
     lcd.setCursor(0,1);
     lcd.print("*no Data signal*");
   }
@@ -269,7 +294,34 @@ void write_header() {
   if(!sd.exists(filename)){
     file.open(filename, O_WRITE | O_CREAT | O_EXCL | O_APPEND);
     
-    file.print("date; CO2; temp");
+    file.print("date; CO2_ppm; O2_vol.%; temp_C");
     file.close();
   }
+}
+
+float readO2Vout()
+{
+    long sum = 0;
+    for(int i=0; i<32; i++)
+    {
+        sum += analogRead(pinAdc);
+    }
+    // >>= bitshift nach rechts entspricht eine division durch 2^x also in diesem fall 2^5 also 32
+    sum >>= 5;
+    //Analog to Digital Converter (ADC): Analog V measured = ADC reading * System Voltage (5V) / Resolution of ADC (10 bits = 2^10 also 1023)
+    float MeasuredVout = sum * (VRefer / 1023.0);
+    
+  
+    return MeasuredVout;
+}
+ 
+float readConcentration()
+{
+    // Vout samples are with reference to 3.3V
+    float MeasuredVout = readO2Vout();
+
+    // Sauerstoffkonz Luft 20.95%
+    // Gemessenes Analog Signal 1.325V
+    float Concentration = MeasuredVout / 1.325 * 20.95 ;
+    return Concentration;
 }

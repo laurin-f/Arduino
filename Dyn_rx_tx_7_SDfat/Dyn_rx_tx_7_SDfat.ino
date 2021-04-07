@@ -126,7 +126,7 @@ void loop(){
   if(file.open(filename, O_WRITE | O_APPEND)){
   
    // time -------------------------------------
-  //SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
+  SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
 
   //rtc.begin(DateTime(F(__DATE__), F(__TIME__)));
   DateTime now1 = rtc.now(); //Get the current time
@@ -261,15 +261,15 @@ void loop(){
 //}
 
 // Function to set the timestamp of the DataFile that was created on the SD card -------------
-//void dateTime(uint16_t* date, uint16_t* time) {
-//  DateTime now = rtc.now();
-//
-//  //return date using FAT_DATE macro to format fields
-//  *date = FAT_DATE(now.year(), now.month(), now.day());
-//
-//  //return time using FAT_TIME macro to format fields
-//  *time = FAT_TIME(now.hour(), now.minute(), now.second());
-//}
+void dateTime(uint16_t* date, uint16_t* time) {
+  DateTime now = rtc.now();
+
+  //return date using FAT_DATE macro to format fields
+  *date = FAT_DATE(now.year(), now.month(), now.day());
+
+  //return time using FAT_TIME macro to format fields
+  *time = FAT_TIME(now.hour(), now.minute(), now.second());
+}
 
 void open_port() {                                  //this function controls what UART port is opened.
 
