@@ -7,20 +7,25 @@
 
 // Create needed variables --------------------------------------------------------------------
 
+// measurement intevall ------------------------------------------------
+int intervall_s = 1;
+int intervall_min = 0;
+//wieviele Minuten soll das Ventil geöffnet werden 
+int ventil_mins = 6;
 
 //Time
 RTC_DS1307 rtc; //Defines the real Time Object
 
-//SD variables
-SdFat sd;
 
-// O2 variables
+//Pins---------------------------------------
 const float VRefer = 5;       // voltage of adc reference
 const int pinAdc   = A0;
 const int pin_ventil = 2;
 const int pin_pumpe = 3;
 const int pin_dyn = 4;
- 
+
+//SD variables---------------------------------------------------
+SdFat sd; 
 const int chipSelect = 10; //Select the pin the SD card uses for communication
   //if Pin 10 is used for something else the SD library will not work
 SdFile file; //Variable for the logging of data
@@ -30,15 +35,7 @@ char date_char[] = "yy/mm/dd HH:MM:SS";
 //Variable for USB connection
 #define ECHO_TO_SERIAL 1 //check if Arduino is connected via USB (aka to a PC)
   //if False the lines regarding the Serial Monitor are not executed
-
-
-// other input variables ------------------------------------------------
-int intervall_s = 1;
-int intervall_min = 0;
 unsigned int baudrate = 38400;
-long min_break = 400L;
-
-
 
 
 
@@ -52,10 +49,8 @@ void setup(){
   }
 
   if (! rtc.isrunning()) {
-//    Serial.println("RTC is NOT running!");
 //    Uhrzeit einmalig adjusten dann auskommentieren
 //    rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
-//    Serial.println("RTC adjusted!");
   }
   
 //output pins
@@ -76,23 +71,21 @@ void setup(){
 
 // loop -----------------------------------------------------
 void loop(){
+  //initialisieren SD-------------------------------------
   if(sd.begin(chipSelect, SPI_HALF_SPEED)){
 
-  get_filename();
-  
+  get_filename();  
   write_header();
-  
 
-  
+  //open file
   if(file.open(filename, O_WRITE | O_APPEND)){
   
    // time -------------------------------------
   SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
 
     DateTime now1 = rtc.now(); //Get the current time
-  
-  // print Datetime 
-    // Warten
+   
+    // Warten--------------------------------------------------------------
     if(intervall_min > 0){
     long pause = 1000L*60L*(intervall_min) - now1.second()*1000L - 2*1000L;
     delay(pause);
@@ -106,23 +99,20 @@ void loop(){
     DateTime now = rtc.now(); //Get the current time
     sprintf(date_char,"%02d/%02d/%02d %02d:%02d:%02d", now.year() % 100, now.month(), now.day(),  now.hour(), now.minute(), now.second());
 
-// relais 1 off and on times
-    if( now.minute() % 6 != 0){
+    // relais 1 off and on times ---------------------------------------------
+    if( now.minute() % ventil_mins != 0){
       digitalWrite(pin_ventil,LOW);
-      Serial.print(" pin_Ventil LOW");
     }else{
       digitalWrite(pin_ventil,HIGH);
-      Serial.print(" pin_Ventil HIGH");
     }
     // relais 2 off and on time
-  if(now.minute() % 6 == 0){
+  if(now.minute() % ventil_mins == 0){
       digitalWrite(pin_pumpe,LOW);
-      Serial.print(" pin_pumpe LOW");
     }else{
       digitalWrite(pin_pumpe,HIGH);
-      Serial.print(" pin_pumpe HIGH");
     }
-    
+
+    //Datum print---------------------------------------------------------------
     file.println("");
     file.print(date_char);
     file.print(";");
@@ -134,8 +124,8 @@ void loop(){
     Serial.print(";");
     #endif ECHO_TO_SERIAL
 
-
-    // read CO2 Anaolog signal
+    
+    // read CO2 Anaolog signal---------------------------------------------------
     float CO2 = readCO2();
 
 
@@ -195,6 +185,7 @@ void write_header() {
   }
 }
 
+//Functionen um CO2 Messewerte analog zu lesen
 float readVout()
 {
     long sum = 0;
@@ -216,8 +207,7 @@ float readCO2()
     // Vout samples are with reference to 3.3V
     float Vout = readVout();
 
-    // Sauerstoffkonz Luft 20.95%
-    // Gemessenes Analog Signal 1.325V
+    // umrechnung in ppm
     float Concentration = ((Vout - 0.4) / 1.6) * 5000;
     return Concentration;
 }
