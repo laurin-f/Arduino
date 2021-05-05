@@ -1,25 +1,12 @@
 
-
-
-
-
-
-
-
 // Load needed packages -----------------------------------------------------------------------
-#include <SoftwareSerial.h>
 #include "RTClib.h" //Time
 #include "SdFat.h" //SD-card
 #include "SPI.h" //needed by SD library
-#include <LiquidCrystal.h>
-//#include <Wire.h>
 
 
 // Create needed variables --------------------------------------------------------------------
 
-// LCD pins
-const int rs = 2, en = 3, d4 = 4, d5 = 5, d6 = 6, d7 = 7;
-LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
 
 //Time
 RTC_DS1307 rtc; //Defines the real Time Object
@@ -30,73 +17,34 @@ SdFat sd;
 // O2 variables
 const float VRefer = 5;       // voltage of adc reference
 const int pinAdc   = A0;
-
-
+const int pin_ventil = 2;
+const int pin_pumpe = 3;
+const int pin_dyn = 4;
  
 const int chipSelect = 10; //Select the pin the SD card uses for communication
   //if Pin 10 is used for something else the SD library will not work
 SdFile file; //Variable for the logging of data
 char filename[] = "yymmdd.TXT";
 char date_char[] = "yy/mm/dd HH:MM:SS";
-char lcd_date[] = "dd.mm HH:MM:SS";
 
 //Variable for USB connection
 #define ECHO_TO_SERIAL 1 //check if Arduino is connected via USB (aka to a PC)
   //if False the lines regarding the Serial Monitor are not executed
 
 
-// Control Bytes -----------------------------------------------------
-//Data Link Escape DLE = 0x10 (00010000)
-int DLE = 0x10;
-//Read RD = 0x13 (00010011)
-int RD = 0x13;
-//End of Frame EOF = 0x1F (00011111)
-int EoF = 0x1F; 
-int CheckSum_High = 0x00; 
-
-// live data reads CO2 and Temp live Data simple only reads CO2
-//read live Data 0x01 live Data simple 0x06
-int VariableID = 0x01;
-//int CheckSum_Low = 0x58; //live data simple
-int CheckSum_Low = 0x53; //live Data
-
-
-byte out_bytes[7] = {DLE, RD, VariableID, DLE, EoF, CheckSum_High, CheckSum_Low};
-
 // other input variables ------------------------------------------------
 int intervall_s = 1;
+int relais_h = 6;
 int intervall_min = 0;
 unsigned int baudrate = 38400;
 long min_break = 400L;
 
-//pins -----------------------------------
-//pins used for Rx and Tx
-int Rx = 8;
-int Tx = 9;
-SoftwareSerial Serial2(Rx, Tx); //rx tx
-
-
-
-//input variables --------------------------
-//live Data simple 15 bytes
-//byte in_bytes[15];
-//live Data with Temperature 27 bytes
-byte in_bytes[27];
-// buffer index to fill in_bytes byte by byte
-byte bufIndx = 0;
-
-byte CO2_bytes[4]; 
-byte temp_bytes[4]; 
 
 
 
 
 // Setup ----------------------------------------------------------------------
 void setup(){
-// establish serial communication -------------------------------------
-  lcd.begin(16, 2);
-      Serial2.begin(baudrate);
-      Serial2.flush();
  // datetime -----------------------------------
 
    if (! rtc.begin()) {
@@ -114,7 +62,13 @@ void setup(){
 //output pins
   //pinMode(chipSelect, OUTPUT); //Reserve pin 10 (chip select) as an output, dont use it for other parts of circuit
   pinMode(chipSelect, OUTPUT);
+  pinMode(pin_ventil, OUTPUT);
+  pinMode(pin_pumpe, OUTPUT);
+  pinMode(pin_dyn, OUTPUT);
 
+  digitalWrite(pin_ventil,HIGH);
+  digitalWrite(pin_pumpe,HIGH);
+  digitalWrite(pin_dyn,HIGH);
 //SD -------------------------------------------------------
    #if ECHO_TO_SERIAL //if USB connection exists do the following:
    Serial.begin(baudrate); //Activate Serial Monitor
@@ -129,11 +83,9 @@ void loop(){
   
   write_header();
   
+
   
-  if(file.open(filename, O_WRITE | O_APPEND)){
   
-   // time -------------------------------------
-  //SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
 
     DateTime now1 = rtc.now(); //Get the current time
   
@@ -151,6 +103,27 @@ void loop(){
     }
     DateTime now = rtc.now(); //Get the current time
     sprintf(date_char,"%02d/%02d/%02d %02d:%02d:%02d", now.year() % 100, now.month(), now.day(),  now.hour(), now.minute(), now.second());
+
+// relais 1 off and on times
+  if(now.hour() % relais_h == 0){
+    
+    if(file.open(filename, O_WRITE | O_APPEND)){
+  
+   // time -------------------------------------
+    SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
+    if( now.minute() >= 1 & now.minute() < 7){
+      digitalWrite(pin_ventil,LOW);
+    }else{
+      digitalWrite(pin_ventil,HIGH);
+    }
+    // relais 2 off and on time
+  if(now.minute() >= 7 & now.minute() < 8){
+      digitalWrite(pin_pumpe,LOW);
+    }else{
+      digitalWrite(pin_pumpe,HIGH);
+    }
+    if(now.minute() <= 7){
+      digitalWrite(pin_dyn,LOW);
     
     file.println("");
     file.print(date_char);
@@ -163,116 +136,45 @@ void loop(){
     Serial.print(";");
     #endif ECHO_TO_SERIAL
 
-    //sprintf(lcd_date," %02d.%02d %02d:%02d:%02d ", now.day(), now.month(),  now.hour(), now.minute(), now.second());
-    sprintf(lcd_date,"%02d:%02d:%02d", now.hour(), now.minute(), now.second());
-    lcd.setCursor(0,0);
-    lcd.print(lcd_date); 
 
-    // read O2 Anaolog signal
-    float O2 = readConcentration();
-// sending bytes ------------------------------------------- 
-  Serial2.write(out_bytes,(sizeof(out_bytes)));
-// receiving bytes -------------------------------------------------
-   if(Serial2.available()){
-    //so lange Serial2 available werden bite für byte abgerufen
-      while (Serial2.available()) {
-          in_bytes[bufIndx] = Serial2.read();
-          //der buffer Index wird jedes mal um 1 erhöht
-          bufIndx ++;
-   }
-   //am Ende wird bufInx wieder auf 0 gesetzt
-   bufIndx = 0;
-
-  //die CO2 Werte stecken an Position 7 bis 10
-  for(int i = 0; i <= sizeof(CO2_bytes);i++){
-    CO2_bytes[i] = in_bytes[i+7];  // extract gas reading from sensor
-  }
-  //die Bytes in ein float umwandeln 
-  float CO2 = *((float *)CO2_bytes); 
-
-  //die temperatur Werte stecken an Position 11 bis 14
-  for(int i = 0; i <= sizeof(CO2_bytes);i++){
-    temp_bytes[i] = in_bytes[i+11];  // extract gas reading from sensor
-  }
-  float temp = *((float *)temp_bytes);
-
-  //in_bytes werden wieder auf 0 gesetzt
-  for(int i = 0; i <= (sizeof(in_bytes)); i++){
-    in_bytes[i] = 0;
-  }
+    // read CO2 Anaolog signal
+    float CO2 = readCO2();
 
 
    //signal an PC console ------------------------------------------
    #if ECHO_TO_SERIAL
-    Serial.print("CO2: ");
-    Serial.print(CO2,0);
-    Serial.print("O2: ");
-    Serial.print(O2,2); 
-    Serial.print(", temp:");
-    Serial.print(temp,2);
-    Serial.print(", ");     
+    Serial.print(" CO2: ");
+    Serial.print(CO2,0);   
   #endif ECHO_TO_SERIAL
 
-    lcd.setCursor(8,0);
-    lcd.print(" O:");
-    lcd.print(O2,2); 
-    
-    lcd.setCursor(0,1);
-    lcd.print("CO2:");
-    if(CO2 < 1000){
-      lcd.print(" ");
-    }
-    lcd.print(CO2,0);
-    lcd.print(" T:");
-    lcd.print(temp,2);    
 
   //Werte in logfile schreiben ------------------------------------------
     file.print(CO2, 0);
-    file.print(";");
-    file.print(O2, 2);
-    file.print(";");
-    file.print(temp, 2);
-
+    file.close();
+    }else{
+      digitalWrite(pin_dyn,HIGH);
       file.close();
-  // wenn kein serial2 available
-  }else{
-      file.print("NA;");
-      file.print(O2, 2);
-      file.print(";NA");
-      file.close();
-
-    lcd.setCursor(8,0);
-    lcd.print(" O:");
-    lcd.print(O2,2); 
-    lcd.setCursor(0,1);
-    lcd.print("*no Data signal*");
+    }
   }
   }
-  }else{
-    lcd.setCursor(0,0);
-    lcd.print(" *** no SD ***  ");
-    lcd.setCursor(0,1);
-    lcd.print(" ** available **");
   }
 }
 
 
 
 //functions---------------------------------------------------------------------------------------------
-//void storeValues () {
-//
-//}
+
 
 // Function to set the timestamp of the DataFile that was created on the SD card -------------
-//void dateTime(uint16_t* date, uint16_t* time) {
-//  DateTime now = rtc.now();
-//
-//  //return date using FAT_DATE macro to format fields
-//  *date = FAT_DATE(now.year(), now.month(), now.day());
-//
-//  //return time using FAT_TIME macro to format fields
-//  *time = FAT_TIME(now.hour(), now.minute(), now.second());
-//}
+void dateTime(uint16_t* date, uint16_t* time) {
+  DateTime now = rtc.now();
+
+  //return date using FAT_DATE macro to format fields
+  *date = FAT_DATE(now.year(), now.month(), now.day());
+
+  //return time using FAT_TIME macro to format fields
+  *time = FAT_TIME(now.hour(), now.minute(), now.second());
+}
 
 
 void get_filename(){
@@ -294,12 +196,12 @@ void write_header() {
   if(!sd.exists(filename)){
     file.open(filename, O_WRITE | O_CREAT | O_EXCL | O_APPEND);
     
-    file.print("date; CO2_ppm; O2_vol.%; temp_C");
+    file.print("date; CO2_ppm");
     file.close();
   }
 }
 
-float readO2Vout()
+float readVout()
 {
     long sum = 0;
     for(int i=0; i<32; i++)
@@ -315,13 +217,13 @@ float readO2Vout()
     return MeasuredVout;
 }
  
-float readConcentration()
+float readCO2()
 {
     // Vout samples are with reference to 3.3V
-    float MeasuredVout = readO2Vout();
+    float Vout = readVout();
 
     // Sauerstoffkonz Luft 20.95%
     // Gemessenes Analog Signal 1.325V
-    float Concentration = MeasuredVout / 1.325 * 20.95 ;
+    float Concentration = ((Vout - 0.4) / 1.6) * 5000;
     return Concentration;
 }
