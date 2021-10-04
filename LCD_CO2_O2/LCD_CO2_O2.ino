@@ -317,18 +317,23 @@ void write_header() {
 }
 
 // Function um Spannung am O2 Pin auszulesen und in eine Konzentration umzurechnen
-float readConcentration()
+float readConcentration(){
   //um die Prezision zu erhöhen wird der Wert 32 Mal gelesen und dann durch 32 geteilt
     long sum = 0;
-    for(int i=0; i<32; i++)
+    int n = 3;
+    int samples = pow(4,n);
+    
+    for(int i=0; i<samples; i++)
     {
         //das ausgelesene Signal zu sum addieren
         sum += analogRead(pinO2);
     }
     // >>= bitshift nach rechts entspricht eine division durch 2^x also in diesem fall 2^5 also 32
-    sum >>= 5;
+    sum >>= n;
     //Analog to Digital Converter (ADC): Analog V measured = ADC reading * System Voltage (5V) / Resolution of ADC (10 bits = 2^10 also 1023)
-    float MeasuredVout = sum * (VRefer / 1023.0);
+    //float MeasuredVout = sum * (VRefer / 1023);
+    float bits = 2^(10 + n)-1;
+    float MeasuredVout = sum * (VRefer /  bits);
     
     // Sauerstoffkonz Luft 20.95%
     // Gemessenes Analog Signal 1.325V

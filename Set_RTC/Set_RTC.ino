@@ -30,8 +30,8 @@ unsigned int baudrate = 38400;
 // Setup ----------------------------------------------------------------------
 void setup(){
  // adjust reals time clock -----------------------------------
-    rtc.begin())
-    rtc.isrunning()
+    rtc.begin();
+    rtc.isrunning();
     rtc.adjust(DateTime(F(__DATE__), F(__TIME__)));
   
 // -------------------------------------------------------
