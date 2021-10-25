@@ -217,7 +217,7 @@ void loop(){
    #if ECHO_TO_SERIAL
     Serial.print("CO2: ");
     Serial.print(CO2,0);
-    Serial.print("O2: ");
+    Serial.print(", O2: ");
     Serial.print(O2,2); 
     Serial.print(", temp:");
     Serial.print(temp,2);
@@ -321,23 +321,29 @@ void write_header() {
 float readConcentration(){
   //um die Prezision zu erhöhen wird der Wert 32 Mal gelesen und dann durch 32 geteilt
     long sum = 0;
-    int n = 5;
-    int samples = pow(2,n);
+    int n = 2;
+    int samples = pow(4,n);
+    int avg = 3;
     
     for(int i=0; i<samples; i++)
     {
+      for(int j=0; j<avg;j++){
         //das ausgelesene Signal zu sum addieren
         sum += analogRead(pinO2);
+      }
     }
+    sum /= avg;
     // >>= bitshift nach rechts entspricht eine division durch 2^x also in diesem fall 2^5 also 32
     sum >>= n;
     //Analog to Digital Converter (ADC): Analog V measured = ADC reading * System Voltage (5V) / Resolution of ADC (10 bits = 2^10 also 1023)
-    float MeasuredVout = sum * (VRefer / 1023);
-
+    //float MeasuredVout = sum * (VRefer / 1023);
+    float bits = pow(2,10 + n)-1;
+    
+    float MeasuredVout = sum * (VRefer /  bits);
     
     // Sauerstoffkonz Luft 20.95%
     // Gemessenes Analog Signal 1.325V
-   // float Concentration = MeasuredVout / 1.325 * 20.95 ;
-    float Concentration = MeasuredVout ;
+    //float Concentration = MeasuredVout / 1.325 * 20.95 ;    
+    float Concentration = MeasuredVout;
     return Concentration;
 }
