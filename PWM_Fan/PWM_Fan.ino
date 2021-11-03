@@ -8,12 +8,15 @@ RTC_Millis rtc; //Defines the real Time Object
 
 
 const int PWMpin1 = 3;
+const int PWMpin2 = 5;
+
 
 const int relaispin1 = 4;
-const int relaispin2 = 5;
+const int relaispin2 = 7;
 
 float Amp = 255;
-float T = 120;//s
+float T = 60;//s
+float offset_1 = 0;//s
 float speed;
 
 void pwmsinus(int PIN,int relais,float period, float offset = 0){
@@ -54,11 +57,13 @@ void pwmfix(int PIN,int speed = 255){
 void setup() { 
   // put your setup code here, to run once:
   pinMode(PWMpin1, OUTPUT);
+  pinMode(PWMpin2, OUTPUT);
+
   pinMode(relaispin1, OUTPUT);
-  //pinMode(relaispin2, OUTPUT);
+  pinMode(relaispin2, OUTPUT);
 
   digitalWrite(relaispin1,LOW);
-  //digitalWrite(relaispin2,LOW);
+  digitalWrite(relaispin2,LOW);
   
   Serial.begin(baudrate);
 }
@@ -66,6 +71,8 @@ void setup() {
 void loop() {
   // speed must be a number between 0 and 255
   pwmsinus(PWMpin1,relaispin1,T,0);
+  pwmsinus(PWMpin2,relaispin2,T,offset_1);
+  
   //pwmfix(PWMpin1);
 
   delay(1000);

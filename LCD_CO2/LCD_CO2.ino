@@ -168,7 +168,7 @@ void loop(){
 
     //Uhrzeit auf dem Display anzeigen
     //sprintf(lcd_date," %02d.%02d %02d:%02d:%02d ", now.day(), now.month(),  now.hour(), now.minute(), now.second());
-    sprintf(lcd_date,"&02d.%02d %02d:%02d:%02d", now.day(), now.month(), now.hour(), now.minute(), now.second());
+    sprintf(lcd_date,"%02d.%02d %02d:%02d:%02d", now.day(), now.month(), now.hour(), now.minute(), now.second());
     lcd.setCursor(0,0);
     lcd.print(lcd_date); 
 
