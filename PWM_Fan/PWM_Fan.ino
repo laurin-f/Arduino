@@ -6,17 +6,26 @@ unsigned int baudrate = 38400;  //baudrate
 //without RTC
 RTC_Millis rtc; //Defines the real Time Object
 
-
-const int PWMpin1 = 3;
-const int PWMpin2 = 5;
-
-
-const int relaispin1 = 4;
-const int relaispin2 = 7;
-
+////////////////////////////////////////////////////////////////////
+// hier den Offset und Amplitude und Periodendauer T einstellen
 float Amp = 255;
 float T = 60;//s
-float offset_1 = 0;//s
+float offset_2 = 10;//s
+float offset_3 = 20;//s
+float offset_4 = 30;//s
+/////////////////////////////////////////////////////////////////////
+
+//Pin Konstanten
+const int PWMpin1 = 3;
+const int PWMpin2 = 5;
+const int PWMpin3 = 6;
+const int PWMpin4 = 9;
+
+const int relaispin1 = 2;
+const int relaispin2 = 4;
+const int relaispin3 = 8;
+const int relaispin4 = 7;
+
 float speed;
 
 void pwmsinus(int PIN,int relais,float period, float offset = 0){
@@ -37,7 +46,9 @@ void pwmsinus(int PIN,int relais,float period, float offset = 0){
     if(rel_time <= 0.5) speed = Amp;
     speed = abs(speed);
     analogWrite(PIN, speed);
-    Serial.print("Time: ");
+    Serial.print("PIN: ");
+    Serial.print(PIN);
+    Serial.print(" Time: ");
     Serial.print(m,0);
     Serial.print(":");
     Serial.print(sec,0);
@@ -58,12 +69,18 @@ void setup() {
   // put your setup code here, to run once:
   pinMode(PWMpin1, OUTPUT);
   pinMode(PWMpin2, OUTPUT);
+  pinMode(PWMpin3, OUTPUT);
+  pinMode(PWMpin4, OUTPUT);
 
   pinMode(relaispin1, OUTPUT);
   pinMode(relaispin2, OUTPUT);
+  pinMode(relaispin3, OUTPUT);
+  pinMode(relaispin4, OUTPUT);
 
-  digitalWrite(relaispin1,LOW);
-  digitalWrite(relaispin2,LOW);
+  digitalWrite(relaispin1,HIGH);
+  digitalWrite(relaispin2,HIGH);
+  digitalWrite(relaispin3,HIGH);
+  digitalWrite(relaispin4,HIGH);
   
   Serial.begin(baudrate);
 }
@@ -71,7 +88,9 @@ void setup() {
 void loop() {
   // speed must be a number between 0 and 255
   pwmsinus(PWMpin1,relaispin1,T,0);
-  pwmsinus(PWMpin2,relaispin2,T,offset_1);
+  pwmsinus(PWMpin2,relaispin2,T,offset_2);
+  pwmsinus(PWMpin3,relaispin3,T,offset_3);
+  pwmsinus(PWMpin4,relaispin4,T,offset_4);
   
   //pwmfix(PWMpin1);
 
