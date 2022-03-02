@@ -5,19 +5,22 @@
 #include "SPI.h" //needed by SD library
 
 
+
 // Create needed variables --------------------------------------------------------------------
 
 // other input variables ------------------------------------------------
 int intervall_s = 1;
+int intervall_min = 0;
 int relais_h = 6;
 int ventil_mins = 6;
 int pumpe_mins = 1;
-int intervall_min = 0;
+
 //initial measurements
 int counter = 0;//counts the initial measurements
 int meas = 0;//changes between 0 = Pump and 1 =  Measurement 
 int n_counts = 5;//number of initial measurements
 int t_init = 3;//minutes before first measurement
+
 
 //Time
 RTC_DS1307 rtc; //Defines the real Time Object
@@ -28,6 +31,7 @@ const int pinAdc   = A0;
 const int pin_ventil = 2;
 const int pin_pumpe = 3;
 const int pin_dyn = 4;
+
 
  //SD variables----------------------------------------------------
 SdFat sd;
@@ -64,13 +68,18 @@ void setup(){
   pinMode(pin_pumpe, OUTPUT);
   pinMode(pin_dyn, OUTPUT);
 
+
   digitalWrite(pin_ventil,HIGH);
   digitalWrite(pin_pumpe,HIGH);
   digitalWrite(pin_dyn,LOW);
+
 //SD -------------------------------------------------------
    #if ECHO_TO_SERIAL //if USB connection exists do the following:
    Serial.begin(baudrate); //Activate Serial Monitor
    #endif ECHO_TO_SERIAL
+
+
+   
 }
 
 // loop -----------------------------------------------------
@@ -99,6 +108,8 @@ void loop(){
     Serial.println();
   Serial.print("counter");
   Serial.print(counter);
+
+  
 //initial measurements
   if(counter == 0){
     long pause = t_init * 60L*1000L;
