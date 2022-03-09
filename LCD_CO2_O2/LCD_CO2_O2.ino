@@ -22,6 +22,7 @@
 // Allgemeine variablen ------------------------------------------------
 int intervall_s = 1;      //Messintervall in s (wenn 0 dann wird intervall_min verwendet)
 int intervall_min = 0;    //Messintervall in min (wenn 0 dann wird intervall_s verwendet)
+int test = 0;
 
 unsigned int baudrate = 38400;  //baudrate
 //Variable for USB connection
@@ -84,7 +85,7 @@ SoftwareSerial Serial2(Rx, Tx); //rx tx
 //live Data simple 15 bytes
 //byte in_bytes[15];
 //live Data with Temperature 27 bytes
-byte in_bytes[27];
+byte in_bytes[50];
 // buffer index to fill in_bytes byte by byte
 byte bufIndx = 0;
 
@@ -122,6 +123,7 @@ void setup(){
 
 // loop -----------------------------------------------------
 void loop(){
+  test++;
   //SD Karte initialisieren
   if(sd.begin(chipSelect, SPI_HALF_SPEED)){
  // Funktion um aktuelles Datum in Dateiname zu schreiben
@@ -173,9 +175,9 @@ void loop(){
     //Uhrzeit auf dem Display anzeigen
     //sprintf(lcd_date," %02d.%02d %02d:%02d:%02d ", now.day(), now.month(),  now.hour(), now.minute(), now.second());
     sprintf(lcd_date,"%02d:%02d:%02d", now.hour(), now.minute(), now.second());
-    lcd.setCursor(0,0);
+    lcd.setCursor(0,0); 
     lcd.print(lcd_date); 
-
+   
     // Messwerte auslesen ------------------------------------------------------------------------
     // read O2 Anaolog signal
     float O2 = readConcentration();
@@ -187,10 +189,15 @@ void loop(){
     if(Serial2.available()){
       //so lange Serial2 available werden bite für byte abgerufen
       while (Serial2.available()) {
+        //if(bufIndx <= 27){
           in_bytes[bufIndx] = Serial2.read();
+        //}
+
           //der buffer Index wird jedes mal um 1 erhöht
           bufIndx ++;
    }
+        Serial.print("bufIndx");
+        Serial.print(bufIndx);
    //am Ende wird bufInx wieder auf 0 gesetzt
    bufIndx = 0;
 
@@ -215,9 +222,11 @@ void loop(){
    // Messwerte ausgeben --------------------------------------------
    //signal an PC console ------------------------------------------
    #if ECHO_TO_SERIAL
+   Serial.print("test: ");
+   Serial.print(test);
     Serial.print("CO2: ");
     Serial.print(CO2,0);
-    Serial.print("O2: ");
+    Serial.print(", O2: ");
     Serial.print(O2,2); 
     Serial.print(", temp:");
     Serial.print(temp,2);
@@ -226,6 +235,7 @@ void loop(){
 
     // Werte auf LCD ausgeben -------------------------------------------
     lcd.setCursor(8,0);
+    lcd.print(test);
     lcd.print(" O:");
     lcd.print(O2,3); 
     
@@ -255,6 +265,7 @@ void loop(){
       file.close();
 
     lcd.setCursor(8,0);
+    lcd.print(test);
     lcd.print(" O:");
     lcd.print(O2,2); 
     lcd.setCursor(0,1);

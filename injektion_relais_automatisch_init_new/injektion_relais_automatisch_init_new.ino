@@ -9,15 +9,16 @@
 
 // other input variables ------------------------------------------------
 int intervall_s = 1;
-int relais_h = 6;
-int ventil_mins = 6;
-int pumpe_mins = 1;
 int intervall_min = 0;
+int relais_h = 6; //Pause zwischen inj messungen in stunden
+int ventil_mins = 6; //Zeitraum in dem das ventil offen ist und die inj Kammer misst
+int pumpe_mins = 1; //how many minutes does the pump pump
+
 //initial measurements
 int counter = 0;//counts the initial measurements
 int meas = 0;//changes between 0 = Pump and 1 =  Measurement 
 int n_counts = 5;//number of initial measurements
-int t_init = 3;//minutes before first measurement
+int t_init = 0;//minutes before first measurement
 
 //Time
 RTC_DS1307 rtc; //Defines the real Time Object
@@ -96,26 +97,38 @@ void loop(){
     DateTime now = rtc.now(); //Get the current time
     sprintf(date_char,"%02d/%02d/%02d %02d:%02d:%02d", now.year() % 100, now.month(), now.day(),  now.hour(), now.minute(), now.second());
 
-    Serial.println();
-  Serial.print("counter");
+  Serial.println();
+  //Serial.println(date_char);
+  Serial.print("meas: ");
+  Serial.println(meas);
+  Serial.print("counter: ");
   Serial.print(counter);
 //initial measurements
+// am anfang wird erstmal t_init gewartet damit der Schlauch sich mit CO2 fuellt
   if(counter == 0){
     long pause = t_init * 60L*1000L;
+    Serial.print("pause: ");
+    Serial.println(t_init);
     delay(pause);
     counter++;
   }else if(counter <= n_counts | (counter == (n_counts +1) & now.minute() % ventil_mins == 0)){
-
-    // relais 1 off and on times ---------------------------------------------
+    //dann werden n_counts messungen gemacht bevor nur noch alle relais_h stunden eine messung gemacht wird
+    //wenn counter n_counts +1 ist dann wird noch ein letztes mal leergepumpt
+    
+    //relais 1 off and on times ---------------------------------------------
+    // ventil geht in die Inj Kamer 
+    //now.minute % ventil_mins != 0 heisst immer wenn die jetzige minute nicht ohne rest durch ventil_mins teilbar ist
     if(now.minute() % ventil_mins != 0){
       digitalWrite(pin_ventil,LOW);
       meas = 1;
     }else{
       digitalWrite(pin_ventil,HIGH);
     }
-    // relais 2 off and on time
+    // relais 2 off and on time---------------------------
+    //Pumpe geht an und spuehlt inj_kammer
   if(now.minute() % ventil_mins == 0){
       digitalWrite(pin_pumpe,LOW);
+      //damit nur einmal der counter hochgesetzt wird dient meas als hilfsvariable die immer nach der messung wieder auf 0 gesetzt wird
       if(meas == 1){
         counter++;
       }
@@ -123,7 +136,7 @@ void loop(){
     }else{
       digitalWrite(pin_pumpe,HIGH);
     }
-
+    //CO2 auslesen und in Datei schreiben
     if(file.open(filename, O_WRITE | O_APPEND)){
   
    // time -------------------------------------

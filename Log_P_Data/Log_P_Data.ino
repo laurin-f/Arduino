@@ -53,6 +53,7 @@ void setup() {
 }
 
 void loop() {
+  //Serial.print("test");
   DateTime now = rtc.now();
 
   int year_str = now.year();
@@ -69,7 +70,8 @@ void loop() {
   int analog_3 = analogRead(A3);
   int analog_6 = analogRead(A6);
   int analog_7 = analogRead(A7);
-
+  
+      
   if (old_second == second_str){
     ++add_mill;
   } else {

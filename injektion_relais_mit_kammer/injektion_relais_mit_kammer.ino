@@ -5,22 +5,32 @@
 #include "SPI.h" //needed by SD library
 #include <SoftwareSerial.h>
 
-
 // Create needed variables --------------------------------------------------------------------
 
 // other input variables ------------------------------------------------
 int intervall_s = 1;
 int intervall_min = 0;
-int kammer_intervall = 4; //min
-int kammer_closing = 2; //min
-int dyn_on = 1; // is dynament sensor turned on or not
+int relais_h = 6; //Pause zwischen inj messungen in stunden
+int ventil_mins = 2;//6; //Zeitraum in dem das ventil offen ist und die inj Kammer misst
+int pumpe_mins = 1; //how many minutes does the pump pump
+int kammer_intervall = 10;//10; //min
+int kammer_closing = 5; //min
+//int dyn_on = 1; // is dynament sensor turned on or not
+//int init_01 = 1; // hilfsvariable um t_init abzuwarten
 int test = 0;
-int pin_test = 2;
+
+//initial measurements
 
 //Time
 RTC_DS1307 rtc; //Defines the real Time Object
 
-// Pins variables ---------------------------------
+int now_init = 0;
+// Pins variables
+const float VRefer = 5;       // voltage of adc reference
+const int pinAdc   = A0;
+const int pin_ventil = 2;
+const int pin_pumpe = 3;
+const int pin_dyn = 4;
 const int pin_kammer = 5;
 const int pin_dyn_kammer = 8;
 
@@ -63,22 +73,25 @@ SdFat sd;
 const int chipSelect = 10; //Select the pin the SD card uses for communication
   //if Pin 10 is used for something else the SD library will not work
 SdFile file; //Variable for the logging of data
-char filename[] = "yymmdd_chamber.TXT";
+char filename[] = "yymmdd_inj.TXT";
+char filename_chamber[] = "yymmdd_chamber.TXT";
 char date_char[] = "yy/mm/dd HH:MM:SS";
 
 //Variable for USB connection
-#define ECHO_TO_SERIAL 1 //check if Arduino is connected via USB (aka to a PC)
+#define ECHO_TO_SERIAL 1 //0 no signal to USB 1 signal to USB
   //if False the lines regarding the Serial Monitor are not executed
 unsigned int baudrate = 38400;
 
 
-///////////////////////////////////////////////////////////////////////////////
+
 // Setup ----------------------------------------------------------------------
 void setup(){
  // datetime -----------------------------------
 
    if (! rtc.begin()) {
+    #if ECHO_TO_SERIAL
     Serial.println("Couldn't find RTC");
+    #endif ECHO_TO_SERIAL
     while (1);
   }
 
@@ -89,37 +102,42 @@ void setup(){
   
 //output pins
   pinMode(chipSelect, OUTPUT);
+  pinMode(pin_ventil, OUTPUT);
+  pinMode(pin_pumpe, OUTPUT);
+  pinMode(pin_dyn, OUTPUT);
   pinMode(pin_kammer, OUTPUT);
   pinMode(pin_dyn_kammer, OUTPUT);
-  pinMode(pin_test, OUTPUT);
 
   digitalWrite(pin_kammer,HIGH);
   digitalWrite(pin_dyn_kammer,LOW);
-  digitalWrite(pin_test,HIGH);
+  digitalWrite(pin_ventil,HIGH);
+  digitalWrite(pin_pumpe,HIGH);
+  digitalWrite(pin_dyn,LOW);
 //SD -------------------------------------------------------
    #if ECHO_TO_SERIAL //if USB connection exists do the following:
    Serial.begin(baudrate); //Activate Serial Monitor
    #endif ECHO_TO_SERIAL
-
+   
    Serial2.begin(baudrate);
    Serial2.flush();
-   
+   //DateTime now = rtc.now(); //Get the current time
+   //now_init = now.minute(); //Get the current time
 }
 
 // loop -----------------------------------------------------
 void loop(){
-  #if ECHO_TO_SERIAL
-  Serial.println(test);
-  #endif ECHO_TO_SERIAL
-  if(test > 1){
-    digitalWrite(pin_test,LOW);
-  }else{
-    digitalWrite(pin_test,HIGH);
-  }
+//  Serial.print("test");
+//  Serial.println(test);
+//  test++;
   if(sd.begin(chipSelect, SPI_HALF_SPEED)){
 
   get_filename();
-  write_header();
+  get_filename_chamber();
+  //write_header();
+  //write_header_chamber();
+  
+  write_header(filename, "date; CO2_ppm");
+  write_header(filename_chamber, "date; CO2_ppm; temp_C; chamber");
   
     DateTime now1 = rtc.now(); //Get the current time
    
@@ -136,44 +154,128 @@ void loop(){
     }
     DateTime now = rtc.now(); //Get the current time
     sprintf(date_char,"%02d/%02d/%02d %02d:%02d:%02d", now.year() % 100, now.month(), now.day(),  now.hour(), now.minute(), now.second());
-    #if ECHO_TO_SERIAL
-    Serial.println(date_char);
-    #endif ECHO_TO_SERIAL
 
-  //------------------------------------
+  
+    /////kammer----------------------------------------------------
+
+    //------------------------------------
   //kammer
-  dyn_on = 1;
-  if(dyn_on == 1){  
+  //-------------------------------------
+  //dyn_on = 1;
+  //delay(100);
+  //if(dyn_on == 1){
+    ////////////////////////////////////////////////////////////////////////////////////////  
     read_CO2_RxTx();
-  }
+    ////////////////////////////////////////////////////////////////////////////////////////
 
-  test++;
+  //}//dyn_on == 1
+   ////////////////////////////////////////////////////////////////////////////////////////
+    
+    ////////////////////////////////////////////////////////////////////////////////////////
+
   if((now.minute() - kammer_closing - 2)  % kammer_intervall == 0){
     digitalWrite(pin_dyn_kammer, HIGH);
-    dyn_on = 0;
+    //dyn_on = 0;
   }
-  
+//  
   if((now.minute() + 2)  % kammer_intervall == 0){
     digitalWrite(pin_dyn_kammer, LOW);
-    dyn_on = 1;
+    //dyn_on = 1;
   }
   
+//  Serial.print("kammer_intervall: ");
+//  Serial.print(kammer_intervall);
+//  Serial.print(" dyn_on:");
+//  Serial.println(dyn_on);
+  
   if(now.minute() % kammer_intervall == 0){
-    digitalWrite(pin_kammer,LOW);
+    digitalWrite(pin_kammer,LOW);    
+    if(file.open(filename_chamber, O_WRITE | O_APPEND)){
+      file.print(";closing");
+      file.close();
+    }
     #if ECHO_TO_SERIAL
     Serial.println("chamber closed");
     #endif ECHO_TO_SERIAL
-  }
-  if((now.minute() - kammer_closing) % kammer_intervall == 0){
+  }else if((now.minute() - kammer_closing) % kammer_intervall == 0){
     digitalWrite(pin_kammer,HIGH);
+    if(file.open(filename_chamber, O_WRITE | O_APPEND)){
+      file.print(";opening");
+      file.close();
+    }
     #if ECHO_TO_SERIAL
     Serial.println("chamber open");
     #endif ECHO_TO_SERIAL
+  }else{
+    if(file.open(filename_chamber, O_WRITE | O_APPEND)){
+      file.print(";0");
+      file.close();
+    }
   }
- }
+
+    
+// relais 1 off and on times -----------------------------------------------------------
+  if(now.hour() % relais_h == 0){
+    
+    if(file.open(filename, O_WRITE | O_APPEND)){
+  
+   // time -------------------------------------
+    SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
+    if( now.minute() >= 1 & now.minute() < (ventil_mins + 1)){
+      digitalWrite(pin_ventil,LOW);
+    }else{
+      digitalWrite(pin_ventil,HIGH);
+    }
+    // relais 2 off and on time
+  if(now.minute() >= (ventil_mins + 1) & now.minute() < (ventil_mins + 1 + pumpe_mins)){
+      digitalWrite(pin_pumpe,LOW);
+    }else{
+      digitalWrite(pin_pumpe,HIGH);
+    }
+    if(now.minute() <= (ventil_mins + 1)){
+      digitalWrite(pin_dyn,LOW);
+
+    //Datum print-------------------------------------------------------------
+    file.println("");
+    file.print(date_char);
+    file.print(";");
+    //file.flush();
+  
+  #if ECHO_TO_SERIAL
+    Serial.print(date_char);
+    Serial.print(";");
+    #endif ECHO_TO_SERIAL
+
+
+    // read CO2 Anaolog signal-------------------------------------------------
+    float CO2 = readCO2();
+
+
+   //signal an PC console ------------------------------------------
+   #if ECHO_TO_SERIAL
+    Serial.print(" CO2: ");
+    Serial.println(CO2,0);   
+  #endif ECHO_TO_SERIAL
+
+
+  //Werte in logfile schreiben ------------------------------------------
+    file.print(CO2, 0);
+    file.close();
+    }else{
+      digitalWrite(pin_dyn,HIGH);
+      file.close();
+    }//now.minute <= ventil_mins +1
+  }//file.open
+  }//relais_h
+  //}//if counter > n_counts
+
+  
+  }//sd.begin
 }
 
-  //functions---------------------------------------------------------------------------------------------
+
+
+//functions---------------------------------------------------------------------------------------------
 
 
 // Function to set the timestamp of the DataFile that was created on the SD card -------------
@@ -189,7 +291,6 @@ void dateTime(uint16_t* date, uint16_t* time) {
 
 
 void get_filename(){
-
 DateTime now = rtc.now();
 
 filename[0] = (now.year()/10)%10 + '0'; //To get 3rd digit from year()
@@ -200,21 +301,61 @@ filename[4] = now.day()/10 + '0'; //To get 1st digit from day()
 filename[5] = now.day()%10 + '0'; //To get 2nd digit from day()
 //filename[6] = now.hour()/12 + '0'; //To get 1st digit from day()
 //filename[7] = now.hour()%10 + '0'; //To get 2nd digit from day()
-
 }
+void get_filename_chamber(){
+DateTime now = rtc.now();
 
-void write_header() {
-  if(!sd.exists(filename)){
-    file.open(filename, O_WRITE | O_CREAT | O_EXCL);
+filename_chamber[0] = (now.year()/10)%10 + '0'; //To get 3rd digit from year()
+filename_chamber[1] = now.year()%10 + '0'; //To get 4th digit from year()
+filename_chamber[2] = now.month()/10 + '0'; //To get 1st digit from month()
+filename_chamber[3] = now.month()%10 + '0'; //To get 2nd digit from month()
+filename_chamber[4] = now.day()/10 + '0'; //To get 1st digit from day()
+filename_chamber[5] = now.day()%10 + '0'; //To get 2nd digit from day()
+//filename[6] = now.hour()/12 + '0'; //To get 1st digit from day()
+//filename[7] = now.hour()%10 + '0'; //To get 2nd digit from day()
+}
+//
+void write_header(char file_name[], char header[]) {
+  if(!sd.exists(file_name)){
+    file.open(file_name, O_WRITE | O_CREAT | O_EXCL | O_APPEND);
     
-    file.print("date; CO2_ppm; temp_C");
+    file.print(header);
     file.close();
   }
 }
+
+
+
+float readVout()
+{
+    long sum = 0;
+    for(int i=0; i<32; i++)
+    {
+        sum += analogRead(pinAdc);
+    }
+    // >>= bitshift nach rechts entspricht eine division durch 2^x also in diesem fall 2^5 also 32
+    sum >>= 5;
+    //Analog to Digital Converter (ADC): Analog V measured = ADC reading * System Voltage (5V) / Resolution of ADC (10 bits = 2^10 also 1023)
+    float MeasuredVout = sum * (VRefer / 1023.0);
+    
   
+    return MeasuredVout;
+}
+ 
+float readCO2()
+{
+    // Vout samples are with reference to 3.3V
+    float Vout = readVout();
+
+    // Sauerstoffkonz Luft 20.95%
+    // Gemessenes Analog Signal 1.325V
+    float Concentration = ((Vout - 0.4) / 1.6) * 5000;
+    return Concentration;
+}
+
 void read_CO2_RxTx() {
     //Datei öffnen (ACHTUNG die Datei muss immer wieder geschlossen werden sonst treten Fehler auf!!)
-    if(file.open(filename, O_WRITE | O_APPEND)){
+    if(file.open(filename_chamber, O_WRITE | O_APPEND)){
       // Messwerte auslesen ------------------------------------------------------------------------
 
     //read CO2 signal with Serial Communication-----------------------------------------------
@@ -224,15 +365,15 @@ void read_CO2_RxTx() {
     if(Serial2.available()){
       //so lange Serial2 available werden byte für byte abgerufen
       while (Serial2.available()) {
-        //if(bufIndx < 30){
+        //if(bufIndx < 50){
           in_bytes[bufIndx] = Serial2.read();
-          //der buffer Index wird jedes mal um 1 erhöht
+          //der buffer Index wird jedes mal um 1 erhöht 
           bufIndx ++;
         //}
    }
    //am Ende wird bufInx wieder auf 0 gesetzt
    bufIndx = 0;
-  //Serial.flush();
+
   //die CO2 Werte stecken an Position 7 bis 10
   for(int i = 0; i <= sizeof(CO2_bytes);i++){
     CO2_bytes[i] = in_bytes[i+7];  // extract gas reading from sensor
@@ -275,8 +416,6 @@ void read_CO2_RxTx() {
       
   // wenn keine CO2 Messwerte vorhanden sind (kein serial2 available)-----------------
   }else{
-    delay(1000);
-    //Serial2.flush();
       file.println("");
       file.print(date_char);
       file.print(";NA;NA");
@@ -288,7 +427,3 @@ void read_CO2_RxTx() {
   }//ende serial2.available
   }//ende file.open
 }
-
-
-
-  
