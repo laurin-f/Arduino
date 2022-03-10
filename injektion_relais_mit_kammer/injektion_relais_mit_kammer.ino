@@ -13,8 +13,8 @@ int intervall_min = 0;
 int relais_h = 6; //Pause zwischen inj messungen in stunden
 int ventil_mins = 2;//6; //Zeitraum in dem das ventil offen ist und die inj Kammer misst
 int pumpe_mins = 1; //how many minutes does the pump pump
-int kammer_intervall = 10;//10; //min
-int kammer_closing = 5; //min
+int kammer_intervall = 20;//10; //min
+int kammer_closing = 7; //min
 //int dyn_on = 1; // is dynament sensor turned on or not
 //int init_01 = 1; // hilfsvariable um t_init abzuwarten
 int test = 0;
@@ -112,7 +112,7 @@ void setup(){
   digitalWrite(pin_dyn_kammer,LOW);
   digitalWrite(pin_ventil,HIGH);
   digitalWrite(pin_pumpe,HIGH);
-  digitalWrite(pin_dyn,LOW);
+  digitalWrite(pin_dyn,HIGH);
 //SD -------------------------------------------------------
    #if ECHO_TO_SERIAL //if USB connection exists do the following:
    Serial.begin(baudrate); //Activate Serial Monitor
@@ -126,9 +126,9 @@ void setup(){
 
 // loop -----------------------------------------------------
 void loop(){
-//  Serial.print("test");
-//  Serial.println(test);
-//  test++;
+  Serial.print("test");
+  Serial.println(test);
+  test++;
   if(sd.begin(chipSelect, SPI_HALF_SPEED)){
 
   get_filename();
@@ -174,7 +174,7 @@ void loop(){
     ////////////////////////////////////////////////////////////////////////////////////////
 
   if((now.minute() - kammer_closing - 2)  % kammer_intervall == 0){
-    digitalWrite(pin_dyn_kammer, HIGH);
+    //digitalWrite(pin_dyn_kammer, HIGH);
     //dyn_on = 0;
   }
 //  
@@ -191,24 +191,28 @@ void loop(){
   if(now.minute() % kammer_intervall == 0){
     digitalWrite(pin_kammer,LOW);    
     if(file.open(filename_chamber, O_WRITE | O_APPEND)){
-      file.print(";closing");
+      file.print(";1");
       file.close();
     }
     #if ECHO_TO_SERIAL
-    Serial.println("chamber closed");
+    Serial.println("closing chamber");
     #endif ECHO_TO_SERIAL
   }else if((now.minute() - kammer_closing) % kammer_intervall == 0){
     digitalWrite(pin_kammer,HIGH);
     if(file.open(filename_chamber, O_WRITE | O_APPEND)){
-      file.print(";opening");
+      file.print(";0");
       file.close();
     }
     #if ECHO_TO_SERIAL
-    Serial.println("chamber open");
+    Serial.println("opening chamber");
     #endif ECHO_TO_SERIAL
   }else{
     if(file.open(filename_chamber, O_WRITE | O_APPEND)){
-      file.print(";0");
+      if(digitalRead(pin_kammer)){
+        file.print(";0");
+      }else{
+        file.print(";1");
+      }
       file.close();
     }
   }
@@ -361,16 +365,27 @@ void read_CO2_RxTx() {
     //read CO2 signal with Serial Communication-----------------------------------------------
     // sending bytes ------------------------------------------- 
     Serial2.write(out_bytes,(sizeof(out_bytes)));
+    Serial.flush();
     // receiving bytes -------------------------------------------------
     if(Serial2.available()){
       //so lange Serial2 available werden byte für byte abgerufen
       while (Serial2.available()) {
-        //if(bufIndx < 50){
+        if(bufIndx <= 39){
           in_bytes[bufIndx] = Serial2.read();
           //der buffer Index wird jedes mal um 1 erhöht 
           bufIndx ++;
-        //}
+        }else{
+          in_bytes[bufIndx] = Serial2.read();
+        }
    }
+    #if ECHO_TO_SERIAL
+        Serial.print("bufIndx");
+        Serial.print(bufIndx);
+        Serial.print(" ");
+     #endif ECHO_TO_SERIAL
+//        file.print("bufIndx:");
+//        file.print(bufIndx);
+//        file.print(" ");
    //am Ende wird bufInx wieder auf 0 gesetzt
    bufIndx = 0;
 
@@ -421,6 +436,8 @@ void read_CO2_RxTx() {
       file.print(";NA;NA");
       file.close();
    #if ECHO_TO_SERIAL
+        Serial.print("bufIndx");
+        Serial.print(bufIndx);
     Serial.print(date_char);
     Serial.println("; no data signal");   
   #endif ECHO_TO_SERIAL

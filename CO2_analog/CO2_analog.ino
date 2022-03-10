@@ -152,18 +152,31 @@ void loop(){
  
   if(print_output){
 
-    Serial.print("CO2_0: ");
-    Serial.print(co2Volt0,DEC);
+    Serial.print("V_0: ");
+    Serial.print(co2Volt0,2);
+    Serial.print(", V_1:");
+    Serial.print(co2Volt1,2);
+    Serial.print(", V_2:");
+    Serial.print(co2Volt2,2);
+    Serial.print(", V_3:");
+    Serial.print(co2Volt3,2);
+    Serial.print(", V_4:");
+    Serial.print(co2Volt4,2);
+    Serial.print(", V_5:");
+    Serial.print(co2Volt5,2);
+
+    Serial.print(" CO2_0: ");
+    Serial.print(CO2_0,DEC);
     Serial.print(", CO2_1:");
-    Serial.print(co2Volt1,DEC);
+    Serial.print(CO2_1,DEC);
     Serial.print(", CO2_2:");
-    Serial.print(co2Volt2,DEC);
+    Serial.print(CO2_2,DEC);
     Serial.print(", CO2_3:");
-    Serial.print(co2Volt3,DEC);
+    Serial.print(CO2_3,DEC);
     Serial.print(", CO2_4:");
-    Serial.print(co2Volt4,DEC);
+    Serial.print(CO2_4,DEC);
     Serial.print(", CO2_5:");
-    Serial.println(co2Volt5,DEC);
+    Serial.println(CO2_5,DEC);
   }
   
 

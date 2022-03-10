@@ -220,6 +220,7 @@ void loop(){
       file.close();
   // wenn kein serial2 available
   }else{
+    Serial.print("NA; ");
     if(port > 1){
       //file.print("NA;NA");
 

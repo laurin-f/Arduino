@@ -11,23 +11,24 @@
 int intervall_s = 1;
 int intervall_min = 0;
 int relais_h = 6; //Pause zwischen inj messungen in stunden
-int ventil_mins = 2;//6; //Zeitraum in dem das ventil offen ist und die inj Kammer misst
+int ventil_mins = 6;//6; //Zeitraum in dem das ventil offen ist und die inj Kammer misst
 int pumpe_mins = 1; //how many minutes does the pump pump
-int kammer_intervall = 5;//10; //min
-int kammer_closing = 1; //min
+int kammer_intervall = 10;//10; //min
+int kammer_closing = 5; //min
 int dyn_on = 1; // is dynament sensor turned on or not
-//int init_01 = 1; // hilfsvariable um t_init abzuwarten
+
 
 //initial measurements
 int counter = 0;//counts the initial measurements
 int meas = 0;//changes between 0 = Pump and 1 =  Measurement 
 int n_counts = 5;//number of initial measurements
 int t_init = 0;//minutes before first measurement
+//int init_01 = 1; // hilfsvariable um t_init abzuwarten
+//int now_init = 0;
 
 //Time
 RTC_DS1307 rtc; //Defines the real Time Object
 
-int now_init = 0;
 // Pins variables
 const float VRefer = 5;       // voltage of adc reference
 const int pinAdc   = A0;
@@ -133,11 +134,11 @@ void loop(){
 
   get_filename();
   get_filename_chamber();
-  write_header();
-  write_header_chamber();
+//  write_header();
+//  write_header_chamber();
   
-//  write_header(filename, "date; CO2_ppm");
-//  write_header(filename_chamber, "date; CO2_ppm; temp_C");
+  write_header(filename, "date; CO2_ppm");
+  write_header(filename_chamber, "date; CO2_ppm; temp_C; chamber");
 //  
     DateTime now1 = rtc.now(); //Get the current time
    
@@ -156,9 +157,12 @@ void loop(){
     sprintf(date_char,"%02d/%02d/%02d %02d:%02d:%02d", now.year() % 100, now.month(), now.day(),  now.hour(), now.minute(), now.second());
 
   
-    
+  //------------------------------------
+  //kammer
+  //-------------------------------------
+
   if((now.minute() - kammer_closing - 2)  % kammer_intervall == 0){
-    digitalWrite(pin_dyn_kammer, HIGH);
+    //digitalWrite(pin_dyn_kammer, HIGH);
     dyn_on = 0;
   }
   
@@ -166,19 +170,46 @@ void loop(){
     digitalWrite(pin_dyn_kammer, LOW);
     dyn_on = 1;
   }
+
+  digitalWrite(pin_dyn_kammer, LOW);
+  dyn_on = 1;
+  if(dyn_on == 1){
+    ////////////////////////////////////////////////////////////////////////////////////////  
+    read_CO2_RxTx();
+    ////////////////////////////////////////////////////////////////////////////////////////
+
+  }//dyn_on == 1
+
+
+  
   
   if(now.minute() % kammer_intervall == 0){
-    digitalWrite(pin_kammer,LOW);
+    digitalWrite(pin_kammer,LOW);    
+    if(file.open(filename_chamber, O_WRITE | O_APPEND)){
+      file.print(";closing");
+      file.close();
+    }
     #if ECHO_TO_SERIAL
-    Serial.println("chamber closed");
+    Serial.println("closing");
     #endif ECHO_TO_SERIAL
-  }
-  if((now.minute() - kammer_closing) % kammer_intervall == 0){
+  }else if((now.minute() - kammer_closing) % kammer_intervall == 0){
     digitalWrite(pin_kammer,HIGH);
+    if(file.open(filename_chamber, O_WRITE | O_APPEND)){
+      file.print(";opening");
+      file.close();
+    }
     #if ECHO_TO_SERIAL
-    Serial.println("chamber open");
+    Serial.println("opening");
     #endif ECHO_TO_SERIAL
+  }else if(dyn_on == 1){
+    if(file.open(filename_chamber, O_WRITE | O_APPEND)){
+      file.print(";0");
+      file.close();
+    }
   }
+  ////////////////////////////////////////////////////////////////////////////////////////
+    
+  ////////////////////////////////////////////////////////////////////////////////////////
   
   ///----------------------------------------------
   #if ECHO_TO_SERIAL
@@ -337,94 +368,7 @@ void loop(){
   }//file.open
   }//relais_h
   }//if counter > n_counts
-//------------------------------------
-  //kammer
-  //-------------------------------------
-  //dyn_on = 0;
-  delay(100);
-  if(dyn_on == 1){
-    ////////////////////////////////////////////////////////////////////////////////////////  
-    //read_CO2_RxTx();
-    ////////////////////////////////////////////////////////////////////////////////////////
 
-        //Datei öffnen (ACHTUNG die Datei muss immer wieder geschlossen werden sonst treten Fehler auf!!)
-    if(file.open(filename, O_WRITE | O_APPEND)){
-      // Messwerte auslesen ------------------------------------------------------------------------
-
-    //read CO2 signal with Serial Communication-----------------------------------------------
-    // sending bytes ------------------------------------------- 
-    Serial2.write(out_bytes,(sizeof(out_bytes)));
-    // receiving bytes -------------------------------------------------
-    if(Serial2.available()){
-      //so lange Serial2 available werden byte für byte abgerufen
-      while (Serial2.available()) {
-          in_bytes[bufIndx] = Serial2.read();
-          //der buffer Index wird jedes mal um 1 erhöht
-          bufIndx ++;
-   }
-   //am Ende wird bufInx wieder auf 0 gesetzt
-   bufIndx = 0;
-
-  //die CO2 Werte stecken an Position 7 bis 10
-  for(int i = 0; i <= sizeof(CO2_bytes);i++){
-    CO2_bytes[i] = in_bytes[i+7];  // extract gas reading from sensor
-  }
-  //die Bytes in ein float umwandeln 
-  float CO2_chamber = *((float *)CO2_bytes); 
-
-  //die temperatur Werte stecken an Position 11 bis 14
-  for(int i = 0; i <= sizeof(CO2_bytes);i++){
-    temp_bytes[i] = in_bytes[i+11];  // extract gas reading from sensor
-  }
-  float temp = *((float *)temp_bytes);
-
-  //in_bytes werden wieder auf 0 gesetzt
-  for(int i = 0; i <= (sizeof(in_bytes)); i++){
-    in_bytes[i] = 0;
-  }
-  
-   // Messwerte ausgeben --------------------------------------------
-   //signal an PC console ------------------------------------------
-   #if ECHO_TO_SERIAL
-    Serial.print(date_char);
-    Serial.print(";");
-    Serial.print("CO2: ");
-    Serial.print(CO2_chamber,0);
-    Serial.print(", temp:");
-    Serial.println(temp,2);    
-  #endif ECHO_TO_SERIAL
-  
-  //Werte in logfile schreiben ------------------------------------------
-    file.println("");
-    file.print(date_char);
-    file.print(";");
-
-    file.print(CO2_chamber, 0);
-    file.print(";");
-    file.print(temp, 2);
-
-    file.close();
-      
-  // wenn keine CO2 Messwerte vorhanden sind (kein serial2 available)-----------------
-  }else{
-      file.println("");
-      file.print(date_char);
-      file.print(";NA;NA");
-      file.close();
-   #if ECHO_TO_SERIAL
-    Serial.print(date_char);
-    Serial.println("; no data signal");   
-  #endif ECHO_TO_SERIAL
-  }//ende serial2.available
-  }//ende file.open
-  
-   
-  }//dyn_on == 1
-   ////////////////////////////////////////////////////////////////////////////////////////
-    
-    ////////////////////////////////////////////////////////////////////////////////////////
-
-  
   }//sd.begin
 }
 
@@ -470,31 +414,31 @@ filename_chamber[5] = now.day()%10 + '0'; //To get 2nd digit from day()
 //filename[7] = now.hour()%10 + '0'; //To get 2nd digit from day()
 }
 //
-//void write_header(char file_name[], char header[]) {
-//  if(!sd.exists(file_name)){
-//    file.open(file_name, O_WRITE | O_CREAT | O_EXCL | O_APPEND);
+void write_header(char file_name[], char header[]) {
+  if(!sd.exists(file_name)){
+    file.open(file_name, O_WRITE | O_CREAT | O_EXCL | O_APPEND);
+    
+    file.print(header);
+    file.close();
+  }
+}
+
+//void write_header() {
+//  if(!sd.exists(filename)){
+//    file.open(filename, O_WRITE | O_CREAT | O_EXCL | O_APPEND);
 //    
-//    file.print(header);
+//    file.print("date; CO2_ppm");
 //    file.close();
 //  }
 //}
-
-void write_header() {
-  if(!sd.exists(filename)){
-    file.open(filename, O_WRITE | O_CREAT | O_EXCL | O_APPEND);
-    
-    file.print("date; CO2_ppm");
-    file.close();
-  }
-}
-void write_header_chamber() {
-  if(!sd.exists(filename_chamber)){
-    file.open(filename_chamber, O_WRITE | O_CREAT | O_EXCL | O_APPEND);
-    
-    file.print("date; CO2_ppm; temp_C");
-    file.close();
-  }
-}
+//void write_header_chamber() {
+//  if(!sd.exists(filename_chamber)){
+//    file.open(filename_chamber, O_WRITE | O_CREAT | O_EXCL | O_APPEND);
+//    
+//    file.print("date; CO2_ppm; temp_C");
+//    file.close();
+//  }
+//}
 
 float readVout()
 {
@@ -525,19 +469,23 @@ float readCO2()
 
 void read_CO2_RxTx() {
     //Datei öffnen (ACHTUNG die Datei muss immer wieder geschlossen werden sonst treten Fehler auf!!)
-    if(file.open(filename, O_WRITE | O_APPEND)){
+    if(file.open(filename_chamber, O_WRITE | O_APPEND)){
       // Messwerte auslesen ------------------------------------------------------------------------
 
     //read CO2 signal with Serial Communication-----------------------------------------------
     // sending bytes ------------------------------------------- 
     Serial2.write(out_bytes,(sizeof(out_bytes)));
+    Serial.flush();
     // receiving bytes -------------------------------------------------
     if(Serial2.available()){
       //so lange Serial2 available werden byte für byte abgerufen
       while (Serial2.available()) {
+        
           in_bytes[bufIndx] = Serial2.read();
           //der buffer Index wird jedes mal um 1 erhöht
+        if(bufIndx <= 39){
           bufIndx ++;
+        }
    }
    //am Ende wird bufInx wieder auf 0 gesetzt
    bufIndx = 0;
@@ -562,14 +510,14 @@ void read_CO2_RxTx() {
   
    // Messwerte ausgeben --------------------------------------------
    //signal an PC console ------------------------------------------
-//   #if ECHO_TO_SERIAL
-//    Serial.print(date_char);
-//    Serial.print(";");
-//    Serial.print("CO2: ");
-//    Serial.print(CO2,0);
-//    Serial.print(", temp:");
-//    Serial.println(temp,2);    
-//  #endif ECHO_TO_SERIAL
+   #if ECHO_TO_SERIAL
+    Serial.print(date_char);
+    Serial.print(";");
+    Serial.print("CO2: ");
+    Serial.print(CO2,0);
+    Serial.print(", temp:");
+    Serial.println(temp,2);    
+  #endif ECHO_TO_SERIAL
   
   //Werte in logfile schreiben ------------------------------------------
     file.println("");
@@ -588,10 +536,10 @@ void read_CO2_RxTx() {
       file.print(date_char);
       file.print(";NA;NA");
       file.close();
-//   #if ECHO_TO_SERIAL
-//    Serial.print(date_char);
-//    Serial.println("; no data signal");   
-//  #endif ECHO_TO_SERIAL
+   #if ECHO_TO_SERIAL
+    Serial.print(date_char);
+    Serial.println("; no data signal");   
+  #endif ECHO_TO_SERIAL
   }//ende serial2.available
   }//ende file.open
 }

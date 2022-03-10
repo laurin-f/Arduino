@@ -242,6 +242,8 @@ void loop(){
 }
   }
   }else{
+    
+    Serial.println("no SD");
     // wenn keine SD Karte dann blinkt es zwiscehn port 2 und 1
     port = 2;
     open_port();

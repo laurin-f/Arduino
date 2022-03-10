@@ -231,7 +231,9 @@ void loop(){
   }//file.open
   }//relais_h
   }//if counter > n_counts
-  }//sd.begin
+  }else{//sd.begin
+    Serial.print("No SD found");
+  }
 }
 
 
