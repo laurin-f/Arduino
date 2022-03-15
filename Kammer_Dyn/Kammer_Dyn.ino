@@ -11,8 +11,8 @@
 // other input variables ------------------------------------------------
 int intervall_s = 1;
 int intervall_min = 0;
-int kammer_intervall = 4; //min
-int kammer_closing = 2; //min
+int kammer_intervall = 20; //min
+int kammer_closing = 7; //min
 int dyn_on = 1; // is dynament sensor turned on or not
 int test = 0;
 int pin_test = 2;
@@ -142,10 +142,9 @@ void loop(){
 
   //------------------------------------
   //kammer
-  dyn_on = 1;
-  if(dyn_on == 1){  
+  //if(dyn_on == 1){  
     read_CO2_RxTx();
-  }
+  //}
 
   test++;
   if((now.minute() - kammer_closing - 2)  % kammer_intervall == 0){
@@ -157,19 +156,35 @@ void loop(){
     digitalWrite(pin_dyn_kammer, LOW);
     dyn_on = 1;
   }
-  
-  if(now.minute() % kammer_intervall == 0){
-    digitalWrite(pin_kammer,LOW);
+    if(now.minute() % kammer_intervall == 0){
+    digitalWrite(pin_kammer,LOW);    
+    if(file.open(filename, O_WRITE | O_APPEND)){
+      file.print(";1");
+      file.close();
+    }
     #if ECHO_TO_SERIAL
-    Serial.println("chamber closed");
+    Serial.println("closing chamber");
     #endif ECHO_TO_SERIAL
-  }
-  if((now.minute() - kammer_closing) % kammer_intervall == 0){
+  }else if((now.minute() - kammer_closing) % kammer_intervall == 0){
     digitalWrite(pin_kammer,HIGH);
+    if(file.open(filename, O_WRITE | O_APPEND)){
+      file.print(";0");
+      file.close();
+    }
     #if ECHO_TO_SERIAL
-    Serial.println("chamber open");
+    Serial.println("opening chamber");
     #endif ECHO_TO_SERIAL
+  }else{
+    if(file.open(filename, O_WRITE | O_APPEND)){
+      if(digitalRead(pin_kammer)){
+        file.print(";0");
+      }else{
+        file.print(";1");
+      }
+      file.close();
+    }
   }
+
  }
 }
 
@@ -207,7 +222,7 @@ void write_header() {
   if(!sd.exists(filename)){
     file.open(filename, O_WRITE | O_CREAT | O_EXCL);
     
-    file.print("date; CO2_ppm; temp_C");
+    file.print("date; CO2_ppm; temp_C; chamber");
     file.close();
   }
 }
@@ -215,24 +230,34 @@ void write_header() {
 void read_CO2_RxTx() {
     //Datei öffnen (ACHTUNG die Datei muss immer wieder geschlossen werden sonst treten Fehler auf!!)
     if(file.open(filename, O_WRITE | O_APPEND)){
+      SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
       // Messwerte auslesen ------------------------------------------------------------------------
 
     //read CO2 signal with Serial Communication-----------------------------------------------
     // sending bytes ------------------------------------------- 
     Serial2.write(out_bytes,(sizeof(out_bytes)));
+    Serial.flush();
     // receiving bytes -------------------------------------------------
     if(Serial2.available()){
       //so lange Serial2 available werden byte für byte abgerufen
       while (Serial2.available()) {
-        //if(bufIndx < 30){
           in_bytes[bufIndx] = Serial2.read();
-          //der buffer Index wird jedes mal um 1 erhöht
+          //der buffer Index wird jedes mal um 1 erhöht 
+        if(bufIndx <= 39){
           bufIndx ++;
-        //}
+        }
    }
+    #if ECHO_TO_SERIAL
+        Serial.print("bufIndx");
+        Serial.print(bufIndx);
+        Serial.print(" ");
+     #endif ECHO_TO_SERIAL
+//        file.print("bufIndx:");
+//        file.print(bufIndx);
+//        file.print(" ");
    //am Ende wird bufInx wieder auf 0 gesetzt
    bufIndx = 0;
-  //Serial.flush();
+
   //die CO2 Werte stecken an Position 7 bis 10
   for(int i = 0; i <= sizeof(CO2_bytes);i++){
     CO2_bytes[i] = in_bytes[i+7];  // extract gas reading from sensor
@@ -275,20 +300,16 @@ void read_CO2_RxTx() {
       
   // wenn keine CO2 Messwerte vorhanden sind (kein serial2 available)-----------------
   }else{
-    delay(1000);
-    //Serial2.flush();
       file.println("");
       file.print(date_char);
       file.print(";NA;NA");
       file.close();
    #if ECHO_TO_SERIAL
+        Serial.print("bufIndx");
+        Serial.print(bufIndx);
     Serial.print(date_char);
     Serial.println("; no data signal");   
   #endif ECHO_TO_SERIAL
   }//ende serial2.available
   }//ende file.open
 }
-
-
-
-  

@@ -10,14 +10,14 @@
 // other input variables ------------------------------------------------
 int intervall_s = 1;
 int intervall_min = 0;
-int relais_h = 6; //Pause zwischen inj messungen in stunden
-int ventil_mins = 2;//6; //Zeitraum in dem das ventil offen ist und die inj Kammer misst
+int relais_h = 3; //Pause zwischen inj messungen in stunden
+int ventil_mins = 6;//6; //Zeitraum in dem das ventil offen ist und die inj Kammer misst
 int pumpe_mins = 1; //how many minutes does the pump pump
-int kammer_intervall = 20;//10; //min
+int kammer_intervall = 30;//10; //min
 int kammer_closing = 7; //min
 //int dyn_on = 1; // is dynament sensor turned on or not
-//int init_01 = 1; // hilfsvariable um t_init abzuwarten
-int test = 0;
+int counter_01 = 1; // hilfsvariable um counter zu setzen
+int counter = 0;
 
 //initial measurements
 
@@ -126,9 +126,9 @@ void setup(){
 
 // loop -----------------------------------------------------
 void loop(){
-  Serial.print("test");
-  Serial.println(test);
-  test++;
+//  Serial.print("test");
+//  Serial.println(test);
+//  test++;
   if(sd.begin(chipSelect, SPI_HALF_SPEED)){
 
   get_filename();
@@ -136,7 +136,7 @@ void loop(){
   //write_header();
   //write_header_chamber();
   
-  write_header(filename, "date; CO2_ppm");
+  write_header(filename, "date; CO2_ppm; counter");
   write_header(filename_chamber, "date; CO2_ppm; temp_C; chamber");
   
     DateTime now1 = rtc.now(); //Get the current time
@@ -220,14 +220,18 @@ void loop(){
     
 // relais 1 off and on times -----------------------------------------------------------
   if(now.hour() % relais_h == 0){
-    
     if(file.open(filename, O_WRITE | O_APPEND)){
   
    // time -------------------------------------
-    SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
+
     if( now.minute() >= 1 & now.minute() < (ventil_mins + 1)){
+    if(counter_01 == 1){
+    counter++;
+    counter_01 =0; 
+    }
       digitalWrite(pin_ventil,LOW);
     }else{
+      counter_01 = 1;
       digitalWrite(pin_ventil,HIGH);
     }
     // relais 2 off and on time
@@ -264,6 +268,8 @@ void loop(){
 
   //Werte in logfile schreiben ------------------------------------------
     file.print(CO2, 0);
+    file.print("; ");
+    file.print(counter);
     file.close();
     }else{
       digitalWrite(pin_dyn,HIGH);
@@ -360,6 +366,7 @@ float readCO2()
 void read_CO2_RxTx() {
     //Datei öffnen (ACHTUNG die Datei muss immer wieder geschlossen werden sonst treten Fehler auf!!)
     if(file.open(filename_chamber, O_WRITE | O_APPEND)){
+       SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
       // Messwerte auslesen ------------------------------------------------------------------------
 
     //read CO2 signal with Serial Communication-----------------------------------------------
