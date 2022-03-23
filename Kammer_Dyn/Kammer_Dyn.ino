@@ -11,11 +11,11 @@
 // other input variables ------------------------------------------------
 int intervall_s = 1;
 int intervall_min = 0;
-int kammer_intervall = 20; //min
-int kammer_closing = 7; //min
+int kammer_intervall = 30; //min
+int kammer_closing = 5; //min
 int dyn_on = 1; // is dynament sensor turned on or not
 int test = 0;
-int pin_test = 2;
+//int pin_test = 2;
 
 //Time
 RTC_DS1307 rtc; //Defines the real Time Object
@@ -91,11 +91,11 @@ void setup(){
   pinMode(chipSelect, OUTPUT);
   pinMode(pin_kammer, OUTPUT);
   pinMode(pin_dyn_kammer, OUTPUT);
-  pinMode(pin_test, OUTPUT);
+  //pinMode(pin_test, OUTPUT);
 
   digitalWrite(pin_kammer,HIGH);
   digitalWrite(pin_dyn_kammer,LOW);
-  digitalWrite(pin_test,HIGH);
+  //digitalWrite(pin_test,HIGH);
 //SD -------------------------------------------------------
    #if ECHO_TO_SERIAL //if USB connection exists do the following:
    Serial.begin(baudrate); //Activate Serial Monitor
@@ -111,11 +111,11 @@ void loop(){
   #if ECHO_TO_SERIAL
   Serial.println(test);
   #endif ECHO_TO_SERIAL
-  if(test > 1){
-    digitalWrite(pin_test,LOW);
-  }else{
-    digitalWrite(pin_test,HIGH);
-  }
+//  if(test > 1){
+//    digitalWrite(pin_test,LOW);
+//  }else{
+//    digitalWrite(pin_test,HIGH);
+//  }
   if(sd.begin(chipSelect, SPI_HALF_SPEED)){
 
   get_filename();

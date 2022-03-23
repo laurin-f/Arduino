@@ -20,6 +20,7 @@ const int PWMpin1 = 3;
 const int PWMpin2 = 5;
 const int PWMpin3 = 6;
 const int PWMpin4 = 9;
+const int PWMpin5 = 10;
 
 const int relaispin1 = 2;
 const int relaispin2 = 4;
@@ -71,6 +72,7 @@ void setup() {
   pinMode(PWMpin2, OUTPUT);
   pinMode(PWMpin3, OUTPUT);
   pinMode(PWMpin4, OUTPUT);
+  pinMode(PWMpin5, OUTPUT);
 
   pinMode(relaispin1, OUTPUT);
   pinMode(relaispin2, OUTPUT);
@@ -81,8 +83,9 @@ void setup() {
   digitalWrite(relaispin2,HIGH);
   digitalWrite(relaispin3,HIGH);
   digitalWrite(relaispin4,HIGH);
-  
+
   Serial.begin(baudrate);
+  pwmfix(PWMpin5,0);
 }
 
 void loop() {

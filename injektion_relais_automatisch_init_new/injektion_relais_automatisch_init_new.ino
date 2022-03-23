@@ -18,7 +18,7 @@ int pumpe_mins = 1; //how many minutes does the pump pump
 int counter = 0;//counts the initial measurements
 int meas = 0;//changes between 0 = Pump and 1 =  Measurement 
 int n_counts = 5;//number of initial measurements
-int t_init = 0;//minutes before first measurement
+int t_init = 3;//minutes before first measurement
 
 //Time
 RTC_DS1307 rtc; //Defines the real Time Object
@@ -35,7 +35,7 @@ SdFat sd;
 const int chipSelect = 10; //Select the pin the SD card uses for communication
   //if Pin 10 is used for something else the SD library will not work
 SdFile file; //Variable for the logging of data
-char filename[] = "yymmdd.TXT";
+char filename[] = "yymmdd_inj.TXT";
 char date_char[] = "yy/mm/dd HH:MM:SS";
 
 //Variable for USB connection
