@@ -136,8 +136,8 @@ void loop(){
   //write_header();
   //write_header_chamber();
   
-  write_header(filename, "date; CO2_ppm; counter; inj; pumpe");
-  write_header(filename_chamber, "date; CO2_ppm; temp_C; bufIndx; counter; chamber");
+  write_header(filename, "date; CO2_ppm; counter; inj");
+  write_header(filename_chamber, "date; CO2_ppm; temp_C; chamber; bufIndx; counter");
   
     DateTime now1 = rtc.now(); //Get the current time
    
@@ -209,11 +209,11 @@ if(now.minute() <= (ventil_mins + 1 + kammer_closing)){
     counter++;
     counter_01 =0; 
     }
-      file.print(";1;");
+      file.print(";1");
       digitalWrite(pin_ventil,LOW);
     }else{
       counter_01 = 1;
-      file.print(";0;");
+      file.print(";0");
       digitalWrite(pin_ventil,HIGH);
     }
 
@@ -221,10 +221,8 @@ if(now.minute() <= (ventil_mins + 1 + kammer_closing)){
     // pin pumpe off and on time
   if(now.minute() >= (ventil_mins + 1 + kammer_closing) & now.minute() < (ventil_mins + pumpe_mins + 1 + kammer_closing)){
       digitalWrite(pin_pumpe,LOW);
-      file.print("1");
     }else{
       digitalWrite(pin_pumpe,HIGH);
-      file.print("0");
     }
     file.close();
   }//file.open
@@ -234,17 +232,7 @@ if(now.minute() <= (ventil_mins + 1 + kammer_closing)){
     //------------------------------------
   //kammer
   //-------------------------------------
-  //dyn_on = 1;
-  //delay(100);
-  if(dyn_on == 1){
-    ////////////////////////////////////////////////////////////////////////////////////////  
-    read_CO2_RxTx();
-    ////////////////////////////////////////////////////////////////////////////////////////
-  }//dyn_on == 1
-   ////////////////////////////////////////////////////////////////////////////////////////
-    
-    ////////////////////////////////////////////////////////////////////////////////////////
-
+  
   if((now.minute() - kammer_closing - 2)  % kammer_intervall == 0){
     digitalWrite(pin_dyn_kammer, HIGH);
     dyn_on = 0;
@@ -254,6 +242,17 @@ if(now.minute() <= (ventil_mins + 1 + kammer_closing)){
     digitalWrite(pin_dyn_kammer, LOW);
     dyn_on = 1;
   }
+  
+  if(dyn_on == 1){
+    ////////////////////////////////////////////////////////////////////////////////////////  
+    read_CO2_RxTx();
+    ////////////////////////////////////////////////////////////////////////////////////////
+  }//dyn_on == 1
+   ////////////////////////////////////////////////////////////////////////////////////////
+    
+    ////////////////////////////////////////////////////////////////////////////////////////
+
+
   
 
   
@@ -268,21 +267,25 @@ if(now.minute() <= (ventil_mins + 1 + kammer_closing)){
     #endif ECHO_TO_SERIAL
   }else if((now.minute() - kammer_closing) % kammer_intervall == 0){
     digitalWrite(pin_kammer,HIGH);
-    if(file.open(filename_chamber, O_WRITE | O_APPEND)){
-      file.print(";0");
-      file.close();
+    if(dyn_on){
+      if(file.open(filename_chamber, O_WRITE | O_APPEND)){
+        file.print(";0");
+        file.close();
+      }
     }
     #if ECHO_TO_SERIAL
     Serial.println("opening chamber");
     #endif ECHO_TO_SERIAL
   }else{
-    if(file.open(filename_chamber, O_WRITE | O_APPEND)){
-      if(digitalRead(pin_kammer)){
-        file.print(";0");
-      }else{
-        file.print(";1");
+    if(dyn_on){
+      if(file.open(filename_chamber, O_WRITE | O_APPEND)){
+        if(digitalRead(pin_kammer)){
+          file.print(";0");
+        }else{
+          file.print(";1");
+        }
+        file.close();
       }
-      file.close();
     }
   }//now.minute() % kammer_intervall == 0
   }//not relais hour

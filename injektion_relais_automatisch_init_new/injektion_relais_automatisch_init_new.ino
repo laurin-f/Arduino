@@ -112,30 +112,10 @@ void loop(){
     delay(pause);
     counter++;
   }else if(counter <= n_counts | (counter == (n_counts +1) & now.minute() % ventil_mins == 0)){
+
     //dann werden n_counts messungen gemacht bevor nur noch alle relais_h stunden eine messung gemacht wird
     //wenn counter n_counts +1 ist dann wird noch ein letztes mal leergepumpt
     
-    //relais 1 off and on times ---------------------------------------------
-    // ventil geht in die Inj Kamer 
-    //now.minute % ventil_mins != 0 heisst immer wenn die jetzige minute nicht ohne rest durch ventil_mins teilbar ist
-    if(now.minute() % ventil_mins != 0){
-      digitalWrite(pin_ventil,LOW);
-      meas = 1;
-    }else{
-      digitalWrite(pin_ventil,HIGH);
-    }
-    // relais 2 off and on time---------------------------
-    //Pumpe geht an und spuehlt inj_kammer
-  if(now.minute() % ventil_mins == 0){
-      digitalWrite(pin_pumpe,LOW);
-      //damit nur einmal der counter hochgesetzt wird dient meas als hilfsvariable die immer nach der messung wieder auf 0 gesetzt wird
-      if(meas == 1){
-        counter++;
-      }
-      meas = 0;
-    }else{
-      digitalWrite(pin_pumpe,HIGH);
-    }
     //CO2 auslesen und in Datei schreiben
     if(file.open(filename, O_WRITE | O_APPEND)){
   
@@ -167,9 +147,36 @@ void loop(){
 
   //Werte in logfile schreiben ------------------------------------------
     file.print(CO2, 0);
-    file.close();
-    }
+    file.print(";");
+    file.print(counter);
+
     
+    //relais 1 off and on times ---------------------------------------------
+    // ventil geht in die Inj Kamer 
+    //now.minute % ventil_mins != 0 heisst immer wenn die jetzige minute nicht ohne rest durch ventil_mins teilbar ist
+    if(now.minute() % ventil_mins != 0){
+      digitalWrite(pin_ventil,LOW);
+      file.print(";1");
+      meas = 1;
+    }else{
+      digitalWrite(pin_ventil,HIGH);
+      file.print(";0");
+    }
+    // relais 2 off and on time---------------------------
+    //Pumpe geht an und spuehlt inj_kammer
+  if(now.minute() % ventil_mins == 0){
+      digitalWrite(pin_pumpe,LOW);
+      //damit nur einmal der counter hochgesetzt wird dient meas als hilfsvariable die immer nach der messung wieder auf 0 gesetzt wird
+      if(meas == 1){
+        counter++;
+      }
+      meas = 0;
+    }else{
+      digitalWrite(pin_pumpe,HIGH);
+    }
+
+        file.close();
+    }
   }else{
     if(counter == (n_counts + 1)){
     digitalWrite(pin_pumpe,HIGH);
@@ -183,17 +190,7 @@ void loop(){
   
    // time -------------------------------------
     SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
-    if( now.minute() >= 1 & now.minute() < (ventil_mins + 1)){
-      digitalWrite(pin_ventil,LOW);
-    }else{
-      digitalWrite(pin_ventil,HIGH);
-    }
-    // relais 2 off and on time
-  if(now.minute() >= (ventil_mins + 1) & now.minute() < (ventil_mins + 1 + pumpe_mins)){
-      digitalWrite(pin_pumpe,LOW);
-    }else{
-      digitalWrite(pin_pumpe,HIGH);
-    }
+
     if(now.minute() <= (ventil_mins + 1)){
       digitalWrite(pin_dyn,LOW);
 
@@ -223,11 +220,29 @@ void loop(){
 
   //Werte in logfile schreiben ------------------------------------------
     file.print(CO2, 0);
-    file.close();
+    file.print(";");
+    file.print(counter);
+
     }else{
       digitalWrite(pin_dyn,HIGH);
       file.close();
     }//now.minute <= ventil_mins +1
+
+    //ventil off and on time
+    if( now.minute() >= 1 & now.minute() < (ventil_mins + 1)){
+      digitalWrite(pin_ventil,LOW);
+      file.print(";1");
+    }else{
+      digitalWrite(pin_ventil,HIGH);
+      file.print(";0");
+    }
+    // relais 2 off and on time
+  if(now.minute() >= (ventil_mins + 1) & now.minute() < (ventil_mins + 1 + pumpe_mins)){
+      digitalWrite(pin_pumpe,LOW);
+    }else{
+      digitalWrite(pin_pumpe,HIGH);
+    }
+        file.close();
   }//file.open
   }//relais_h
   }//if counter > n_counts
@@ -272,7 +287,7 @@ void write_header() {
   if(!sd.exists(filename)){
     file.open(filename, O_WRITE | O_CREAT | O_EXCL | O_APPEND);
     
-    file.print("date; CO2_ppm");
+    file.print("date; CO2_ppm; counter; inj");
     file.close();
   }
 }

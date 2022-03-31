@@ -1,18 +1,23 @@
 #include <SPI.h>
-#include <SD.h>
+//#include <SD.h>
+#include "SdFat.h" //SD-card
+
 #include "RTClib.h"
+
+SdFat sd;
 
 
 const int LedPin_red = 2; // Digital pin of the indicator LED
 const int LedPin_green = 3; // Digital pin of the indicator LED
 
 RTC_DS3231 rtc;
-File myFile;
+//File myFile;
+SdFile myFile; //Variable for the logging of data
 
 int old_second = 0;
 int add_mill = 0;
 char msg[80]; // define max message size
-char filename[] = "00000000.txt";
+char filename[] = "00000000.TXT";
 
 void setup() {
   pinMode(LedPin_red, OUTPUT);
@@ -25,10 +30,11 @@ void setup() {
   }
 
   Serial.print("Initializing SD card...");
-  if (!SD.begin(4)) {
+  if (!sd.begin(4)) {
+  //if (!SD.begin(4)) {
     digitalWrite(LedPin_red, HIGH); 
     Serial.println("initialization failed!");
-    while (1);
+    //while (1);
   }
   Serial.println("initialization done.");
 
@@ -52,7 +58,9 @@ void setup() {
   digitalWrite(LedPin_green, LOW); 
 }
 
-void loop() {
+void loop() {  
+  if (sd.begin(4)) {
+
   //Serial.print("test");
   DateTime now = rtc.now();
 
@@ -87,11 +95,13 @@ void loop() {
       
     getFileName();
     //Serial.println(filename);
-    
-    myFile = SD.open(filename, FILE_WRITE);
+    //myFile = SD.open(filename, FILE_WRITE);
+   
   
     // if the file opened okay, write to it:
-    if (myFile) {
+    if (myFile.open(filename, O_WRITE | O_APPEND | O_CREAT)) {
+      SdFile::dateTimeCallback(dateTime); //Update the timestamp of the logging file
+    //if (myFile) {
       //Serial.println("Writing to file ...");
       myFile.println(msg);
       //digitalWrite(LedPin_red, HIGH); 
@@ -104,9 +114,28 @@ void loop() {
       Serial.println("error opening file");
     }
   }
-  delay(70); // Logging interval
+  delay(70); //eigentlich70// Logging interval
   digitalWrite(LedPin_red, LOW); 
   digitalWrite(LedPin_green, LOW); 
+  }else{
+          // if the file didn't open, print an error:
+      digitalWrite(LedPin_red, HIGH); 
+      Serial.println("no SD Card");
+  }
+}
+
+//////////////////////////////////////////////////////////////////////
+//////functions //////////////////////////////////////////////////
+
+// Function to set the timestamp of the DataFile that was created on the SD card -------------
+void dateTime(uint16_t* date, uint16_t* time) {
+  DateTime now = rtc.now();
+
+  //return date using FAT_DATE macro to format fields
+  *date = FAT_DATE(now.year(), now.month(), now.day());
+
+  //return time using FAT_TIME macro to format fields
+  *time = FAT_TIME(now.hour(), now.minute(), now.second());
 }
 
 void getFileName(){

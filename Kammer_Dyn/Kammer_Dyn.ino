@@ -142,9 +142,9 @@ void loop(){
 
   //------------------------------------
   //kammer
-  //if(dyn_on == 1){  
+  if(dyn_on == 1){  
     read_CO2_RxTx();
-  //}
+  }
 
   test++;
   if((now.minute() - kammer_closing - 2)  % kammer_intervall == 0){
@@ -167,14 +167,17 @@ void loop(){
     #endif ECHO_TO_SERIAL
   }else if((now.minute() - kammer_closing) % kammer_intervall == 0){
     digitalWrite(pin_kammer,HIGH);
-    if(file.open(filename, O_WRITE | O_APPEND)){
-      file.print(";0");
-      file.close();
+    if(dyn_on){
+      if(file.open(filename, O_WRITE | O_APPEND)){
+        file.print(";0");
+        file.close();
+      }
     }
     #if ECHO_TO_SERIAL
     Serial.println("opening chamber");
     #endif ECHO_TO_SERIAL
   }else{
+    if(dyn_on){
     if(file.open(filename, O_WRITE | O_APPEND)){
       if(digitalRead(pin_kammer)){
         file.print(";0");
@@ -182,6 +185,7 @@ void loop(){
         file.print(";1");
       }
       file.close();
+    }
     }
   }
 

@@ -22,7 +22,7 @@
 // Allgemeine variablen ------------------------------------------------
 int intervall_s = 1;      //Messintervall in s (wenn 0 dann wird intervall_min verwendet)
 int intervall_min = 0;    //Messintervall in min (wenn 0 dann wird intervall_s verwendet)
-int test = 0;
+//int test = 0;
 
 unsigned int baudrate = 38400;  //baudrate
 //Variable for USB connection
@@ -123,7 +123,7 @@ void setup(){
 
 // loop -----------------------------------------------------
 void loop(){
-  test++;
+  //test++;
   //SD Karte initialisieren
   if(sd.begin(chipSelect, SPI_HALF_SPEED)){
  // Funktion um aktuelles Datum in Dateiname zu schreiben
@@ -222,8 +222,8 @@ void loop(){
    // Messwerte ausgeben --------------------------------------------
    //signal an PC console ------------------------------------------
    #if ECHO_TO_SERIAL
-   Serial.print("test: ");
-   Serial.print(test);
+   //Serial.print("test: ");
+   //Serial.print(test);
     Serial.print("CO2: ");
     Serial.print(CO2,0);
     Serial.print(", O2: ");
@@ -235,7 +235,7 @@ void loop(){
 
     // Werte auf LCD ausgeben -------------------------------------------
     lcd.setCursor(8,0);
-    lcd.print(test);
+    //lcd.print(test);
     lcd.print(" O:");
     lcd.print(O2,3); 
     
@@ -265,7 +265,7 @@ void loop(){
       file.close();
 
     lcd.setCursor(8,0);
-    lcd.print(test);
+    //lcd.print(test);
     lcd.print(" O:");
     lcd.print(O2,2); 
     lcd.setCursor(0,1);
