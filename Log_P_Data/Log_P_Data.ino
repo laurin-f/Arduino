@@ -17,7 +17,7 @@ SdFile myFile; //Variable for the logging of data
 int old_second = 0;
 int add_mill = 0;
 char msg[80]; // define max message size
-char filename[] = "00000000.TXT";
+char filename[] = "yymmdd.TXT";
 
 void setup() {
   pinMode(LedPin_red, OUTPUT);
@@ -115,8 +115,9 @@ void loop() {
     }
   }
   delay(70); //eigentlich70// Logging interval
-  digitalWrite(LedPin_red, LOW); 
   digitalWrite(LedPin_green, LOW); 
+  digitalWrite(LedPin_red, LOW); 
+  delay(900);//longer logging intervall
   }else{
           // if the file didn't open, print an error:
       digitalWrite(LedPin_red, HIGH); 
@@ -151,6 +152,6 @@ void getFileName(){
   filename[4] = now.day()/10 + '0'; //To get 1st digit from day()
   filename[5] = now.day()%10 + '0'; //To get 2nd digit from day()
 
-  filename[6] = now.hour()/10 + '0'; //To get 1st digit from hour()
-  filename[7] = now.hour()%10 + '0'; //To get 2nd digit from hour()
+  //filename[6] = now.hour()/10 + '0'; //To get 1st digit from hour()
+  //filename[7] = now.hour()%10 + '0'; //To get 2nd digit from hour()
 }

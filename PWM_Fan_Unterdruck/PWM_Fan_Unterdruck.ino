@@ -87,16 +87,21 @@ void setup() {
 
   Serial.begin(baudrate);
   // PWM Signal für Ventilatoren am Boden
+  pwmfix(PWMpin1,Amp);
+  pwmfix(PWMpin2,Amp);
+  pwmfix(PWMpin3,Amp);
+  pwmfix(PWMpin4,Amp);
   pwmfix(PWMpin5,WS_soil);
+  
 }
 
 void loop() {
   // speed must be a number between 0 and 255
-  pwmsinus(PWMpin1,relaispin1,T,0);
-  pwmsinus(PWMpin2,relaispin2,T,offset_2);
-  pwmsinus(PWMpin3,relaispin3,T,offset_3);
-  pwmsinus(PWMpin4,relaispin4,T,offset_4);
-  
+  //pwmsinus(PWMpin1,relaispin1,T,0);
+//  pwmsinus(PWMpin2,relaispin2,T,offset_2);
+//  pwmsinus(PWMpin3,relaispin3,T,offset_3);
+//  pwmsinus(PWMpin4,relaispin4,T,offset_4);
+//  
   //pwmfix(PWMpin1);
 
   delay(1000);

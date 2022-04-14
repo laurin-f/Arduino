@@ -162,7 +162,7 @@ void loop(){
 //////////////////////////////////////////////////////////////////////////////////////////////
 // injection rate /// -----------------------------------------------------------
 ////////////////////////////////////////////////////////////////////////////////////////////////
-  if(now.hour() % relais_h == 0 & now.minute() <= (ventil_mins + pumpe_mins + 1 + kammer_closing) & now.minute() > kammer_closing){
+  if(now.hour() % relais_h == 0 & now.minute() <= (ventil_mins + pumpe_mins + 1 + kammer_closing +3) & now.minute() >= kammer_closing + 3){
     if(file.open(filename, O_WRITE | O_APPEND)){
       //Datum print-------------------------------------------------------------
 
@@ -176,7 +176,7 @@ void loop(){
     file.print(";");
    
    // pin dyn -------------------------------------
-if(now.minute() <= (ventil_mins + 1 + kammer_closing)){
+if(now.minute() <= (ventil_mins + 1 + kammer_closing +3)){
       digitalWrite(pin_dyn,LOW);
 
     // read CO2 Anaolog signal-------------------------------------------------
@@ -204,7 +204,7 @@ if(now.minute() <= (ventil_mins + 1 + kammer_closing)){
     
     //--------------------------------------
     //pin ventil
-    if( now.minute() >= (1 + kammer_closing) & now.minute() < (ventil_mins + 1 + kammer_closing)){
+    if( now.minute() >= (1 + kammer_closing + 3) & now.minute() < (ventil_mins + 1 + kammer_closing + 3)){
     if(counter_01 == 1){
     counter++;
     counter_01 =0; 
@@ -219,7 +219,7 @@ if(now.minute() <= (ventil_mins + 1 + kammer_closing)){
 
     //----------------------------------------------------
     // pin pumpe off and on time
-  if(now.minute() >= (ventil_mins + 1 + kammer_closing) & now.minute() < (ventil_mins + pumpe_mins + 1 + kammer_closing)){
+  if(now.minute() >= (ventil_mins + 1 + kammer_closing +3) & now.minute() < (ventil_mins + pumpe_mins + 1 + kammer_closing +3)){
       digitalWrite(pin_pumpe,LOW);
     }else{
       digitalWrite(pin_pumpe,HIGH);
