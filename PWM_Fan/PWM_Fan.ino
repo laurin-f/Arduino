@@ -14,6 +14,7 @@ float T = 60;//s
 float offset_2 = 10;//s
 float offset_3 = 20;//s
 float offset_4 = 30;//s
+float amp_offset = -0.8;
 /////////////////////////////////////////////////////////////////////
 
 //Pin Konstanten
@@ -30,22 +31,36 @@ const int relaispin4 = 7;
 
 float speed;
 
-void pwmsinus(int PIN,int relais,float period, float offset = 0){
+void pwmsinus(int PIN,int relais,float period, float offset = 0, float amp_offset = 1){
     DateTime now = rtc.now();
     float sec = now.second();
     float m = now.minute();
     float min_sec = m*60 + sec;
     speed = Amp * sin((min_sec-offset)/period*2*PI) ;
-
+    float rel_time_2 = min_sec/period*2 - floor(min_sec/period*2);
+    float rel_time = min_sec/period - floor(min_sec/period);
+    if(rel_time_2 <= 0.5){
+      if(rel_time < 0.5){
+       speed = Amp;
+      }else{
+       speed = -Amp; 
+      }
+    }
 
     if(speed <= 0){
+      if(amp_offset < 0){
+        speed = speed*abs(amp_offset);
+      }
       digitalWrite(relais,HIGH);
     }else{
+      if(amp_offset > 0){
+        speed = speed*abs(amp_offset);
+      }
       digitalWrite(relais,LOW);
     }
 
-    float rel_time = min_sec/period*2 - floor(min_sec/period*2);
-    if(rel_time <= 0.5) speed = Amp;
+
+
     speed = abs(speed);
     analogWrite(PIN, speed);
     Serial.print("PIN: ");
@@ -92,10 +107,10 @@ void setup() {
 
 void loop() {
   // speed must be a number between 0 and 255
-  pwmsinus(PWMpin1,relaispin1,T,0);
-  pwmsinus(PWMpin2,relaispin2,T,offset_2);
-  pwmsinus(PWMpin3,relaispin3,T,offset_3);
-  pwmsinus(PWMpin4,relaispin4,T,offset_4);
+  pwmsinus(PWMpin1,relaispin1,T,0,amp_offset);
+  pwmsinus(PWMpin2,relaispin2,T,offset_2,amp_offset);
+  pwmsinus(PWMpin3,relaispin3,T,offset_3,amp_offset);
+  pwmsinus(PWMpin4,relaispin4,T,offset_4,amp_offset);
   
   //pwmfix(PWMpin1);
 

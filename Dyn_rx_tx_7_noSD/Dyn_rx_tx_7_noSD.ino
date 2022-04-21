@@ -50,8 +50,8 @@ byte out_bytes[7] = {DLE, RD, VariableID, DLE, EoF, CheckSum_High, CheckSum_Low}
 
 //pins -----------------------------------
 //pins used for Rx and Tx
-int Rx = 7;
-int Tx = 2;
+int Rx = 2;
+int Tx = 3;
 SoftwareSerial Serial2(Rx, Tx); //rx tx
 unsigned int baudrate = 38400;
 
