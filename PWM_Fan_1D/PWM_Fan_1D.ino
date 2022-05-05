@@ -11,9 +11,9 @@ RTC_Millis rtc; //Defines the real Time Object
 float Amp = 255;
 int WS_soil = 0;
 float T = 60;//s
-float offset_2 = 10;//s
-float offset_3 = 20;//s
-float offset_4 = 30;//s
+float offset_2 = 0;//s
+float offset_3 = 0;//s
+float offset_4 = 0;//s
 float amp_offset = -0.8;
 /////////////////////////////////////////////////////////////////////
 

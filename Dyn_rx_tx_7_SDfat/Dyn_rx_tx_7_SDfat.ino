@@ -9,8 +9,8 @@
 // Create needed variables --------------------------------------------------------------------
 
 // measurement intervall ------------------------------------------------
-int intervall_s = 0;
-int intervall_min = 1;
+int intervall_s = 1;
+int intervall_min = 0;
 long min_break = 400L;
 
 //Time
@@ -59,7 +59,7 @@ unsigned int baudrate = 38400;
 //live Data simple 15 bytes
 //byte in_bytes[15];
 //live Data with Temperature 27 bytes
-byte in_bytes[27];
+byte in_bytes[50];
 // buffer index to fill in_bytes byte by byte
 byte bufIndx = 0;
 
@@ -174,9 +174,13 @@ void loop(){
    if(Serial2.available()){
     //so lange Serial2 available werden bite für byte abgerufen
       while (Serial2.available()) {
+          if(bufIndx <= 49){
           in_bytes[bufIndx] = Serial2.read();
-          //der buffer Index wird jedes mal um 1 erhöht
+          //der buffer Index wird jedes mal um 1 erhöht 
           bufIndx ++;
+        }else{
+          in_bytes[bufIndx] = Serial2.read();
+        }
    }
    //am Ende wird bufInx wieder auf 0 gesetzt
    bufIndx = 0;
