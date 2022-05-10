@@ -9,7 +9,8 @@ RTC_Millis rtc; //Defines the real Time Object
 ////////////////////////////////////////////////////////////////////
 // hier den Offset und Amplitude und Periodendauer T einstellen
 float Amp_rel = 100;//100%
-
+float Amp_change_rel = -20; // 20% weniger pro Stufe
+int step_hours = 5; // Anzahl Stunden pro Amp Stufe
 int WS_soil = 0;
 float T = 60;//s
 float offset_2 = 10;//s
@@ -21,8 +22,14 @@ float amp_offset3 = 1;
 float amp_offset4 = 1;
 /////////////////////////////////////////////////////////////////////
 //umrechnung
-float Amp = Amp_rel/100 * 255;
 
+float Amp = Amp_rel/100 * 255;
+float Amp_change = Amp_change_rel/100 * 255;
+
+//andere Variablen
+int marker = 1;
+int start_day = 0;
+int start_hour = 0;
 
 //Pin Konstanten
 const int PWMpin1 = 3;
@@ -112,10 +119,25 @@ void setup() {
   Serial.begin(baudrate);
   // PWM Signal für Ventilatoren am Boden
   pwmfix(PWMpin5,WS_soil);
+  DateTime now = rtc.now();
+  start_hour = now.hour();
+  start_day = now.day();
 }
 
 void loop() {
   DateTime now = rtc.now();
+  if(!(now.day() == start_day & now.hour() == start_hour)){
+    if((now.hour() - start_hour) % step_hours == 0 & marker == 1){
+      Amp = Amp + Amp_change;
+      marker = 0;
+      if(Amp > 255){
+       Amp = 255;
+      }
+    }
+  }
+  if((now.hour() - start_hour) % step_hours != 0 & marker == 0){
+    marker = 1;
+  }
   
   // speed must be a number between 0 and 255
   pwmsinus(PWMpin1,relaispin1,T,0,amp_offset1);
