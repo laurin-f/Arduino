@@ -9,8 +9,8 @@
 // Create needed variables --------------------------------------------------------------------
 
 // measurement intervall ------------------------------------------------
-int intervall_s = 1;
-int intervall_min = 0;
+int intervall_s = 0;
+int intervall_min = 1;
 long min_break = 400L;
 
 //Time

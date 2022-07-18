@@ -9,8 +9,8 @@ RTC_Millis rtc; //Defines the real Time Object
 ////////////////////////////////////////////////////////////////////
 // hier den Offset und Amplitude und Periodendauer T einstellen
 float Amp_rel = 100;//100%
-float Amp_change_rel = -20; // 20% weniger pro Stufe
-int step_hours = 5; // Anzahl Stunden pro Amp Stufe
+float Amp_change_rel = -15; // 20% weniger pro Stufe
+int step_hours = 8; // Anzahl Stunden pro Amp Stufe
 int WS_soil = 0;
 float T = 60;//s
 float offset_2 = 10;//s

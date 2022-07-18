@@ -10,8 +10,8 @@
 // other input variables ------------------------------------------------
 int intervall_s = 1;
 int intervall_min = 0;
-int relais_h = 3; //Pause zwischen inj messungen in stunden
-int ventil_mins = 6;//6; //Zeitraum in dem das ventil offen ist und die inj Kammer misst
+int relais_h = 6; //Pause zwischen inj messungen in stunden
+int ventil_mins = 6;//6; //minuten Zeitraum in dem das ventil offen ist und die inj Kammer misst
 int pumpe_mins = 1; //how many minutes does the pump pump
 int kammer_intervall = 30;//10; //min
 int kammer_closing = 5; //min
@@ -289,7 +289,14 @@ if(now.minute() <= (ventil_mins + 1 + kammer_closing +3)){
     }
   }//now.minute() % kammer_intervall == 0
   }//not relais hour
-  }//sd.begin
+  }else{//sd.begin
+  digitalWrite(pin_ventil,LOW);
+  delay(1000);
+  digitalWrite(pin_ventil,HIGH);
+  delay(4000);
+    
+ }
+  
 }
 
 

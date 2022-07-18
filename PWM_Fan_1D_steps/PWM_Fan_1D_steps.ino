@@ -8,14 +8,14 @@ RTC_Millis rtc; //Defines the real Time Object
 
 ////////////////////////////////////////////////////////////////////
 // hier den Offset und Amplitude und Periodendauer T einstellen
-float Amp_rel = 0;//100%
-float Amp_change_rel = 5; // 20% weniger pro Stufe
-int step_hours = 3; // Anzahl Stunden pro Amp Stufe
+float Amp_rel = 100;//100%
+float Amp_change_rel = -20; // 20% weniger pro Stufe
+int step_hours = 7; // Anzahl Stunden pro Amp Stufe
 int WS_soil = 0;
 float T = 60;//s
-float offset_2 = 10;//s
-float offset_3 = 20;//s
-float offset_4 = 30;//s
+float offset_2 = 0;//s
+float offset_3 = 0;//s
+float offset_4 = 0;//s
 float amp_offset1 = 1;
 float amp_offset2 = 1;
 float amp_offset3 = 1;
@@ -23,8 +23,8 @@ float amp_offset4 = 1;
 /////////////////////////////////////////////////////////////////////
 //umrechnung
 
-float Amp = round(Amp_rel/100 * 255);
-float Amp_change = round(Amp_change_rel/100 * 255);
+float Amp = Amp_rel/100 * 255;
+float Amp_change = Amp_change_rel/100 * 255;
 
 //andere Variablen
 int marker = 1;
@@ -133,31 +133,17 @@ void loop() {
       if(Amp > 255){
        Amp = 255;
       }
-      if(Amp < -255){
-       Amp = -255;
-      }
     }
   }
   if((now.hour() - start_hour) % step_hours != 0 & marker == 0){
     marker = 1;
   }
-
-  if(Amp < 0){
-    digitalWrite(relaispin1,HIGH);
-    digitalWrite(relaispin2,HIGH);
-    digitalWrite(relaispin3,HIGH);
-    digitalWrite(relaispin4,HIGH);
-  }else{
-    digitalWrite(relaispin1,LOW);
-    digitalWrite(relaispin2,LOW);
-    digitalWrite(relaispin3,LOW);
-    digitalWrite(relaispin4,LOW);
-  }
+  
   // speed must be a number between 0 and 255
-  pwmfix(PWMpin1,abs(Amp));
-  pwmfix(PWMpin2,abs(Amp));
-  pwmfix(PWMpin3,abs(Amp));
-  pwmfix(PWMpin4,abs(Amp));
+  pwmsinus(PWMpin1,relaispin1,T,0,amp_offset1);
+  pwmsinus(PWMpin2,relaispin2,T,offset_2,amp_offset2);
+  pwmsinus(PWMpin3,relaispin3,T,offset_3,amp_offset3);
+  pwmsinus(PWMpin4,relaispin4,T,offset_4,amp_offset4);
   
   //pwmfix(PWMpin1);
 

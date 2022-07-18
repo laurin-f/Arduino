@@ -8,24 +8,24 @@ RTC_Millis rtc; //Defines the real Time Object
 
 ////////////////////////////////////////////////////////////////////
 // hier den Offset und Amplitude und Periodendauer T einstellen
-float Amp_rel = 0;//100%
-float Amp_change_rel = 5; // 20% weniger pro Stufe
-int step_hours = 3; // Anzahl Stunden pro Amp Stufe
+float Amp_rel = 70;//100%
+//float Amp_change_rel = 10; // 10% mehr pro Stufe
+float amp_offset_change = -20; // 20% weniger pro Stufe
+int step_hours = 5; // Anzahl Stunden pro Amp Stufe
 int WS_soil = 0;
 float T = 60;//s
 float offset_2 = 10;//s
 float offset_3 = 20;//s
 float offset_4 = 30;//s
-float amp_offset1 = 1;
-float amp_offset2 = 1;
-float amp_offset3 = 1;
-float amp_offset4 = 1;
+float amp_offset = 0;
+//float amp_offset2 = 1;
+//float amp_offset3 = 1;
+//float amp_offset4 = 1;
 /////////////////////////////////////////////////////////////////////
 //umrechnung
 
-float Amp = round(Amp_rel/100 * 255);
-float Amp_change = round(Amp_change_rel/100 * 255);
-
+float Amp = Amp_rel/100 * 255;
+//float Amp_change = Amp_change_rel/100 * 255;
 //andere Variablen
 int marker = 1;
 int start_day = 0;
@@ -46,6 +46,9 @@ const int relaispin4 = 7;
 
 
 float speed;
+////////////////////////////////////////////
+//fuctions
+////////////////////////////////////////////
 
 void pwmsinus(int PIN,int relais,float period, float offset = 0, float amp_offset = 1){
     DateTime now = rtc.now();
@@ -64,14 +67,10 @@ void pwmsinus(int PIN,int relais,float period, float offset = 0, float amp_offse
     }
 
     if(speed <= 0){
-      if(amp_offset < 0){
-        speed = speed*abs(amp_offset);
-      }
+        speed = speed - (amp_offset);
       digitalWrite(relais,HIGH);
     }else{
-      if(amp_offset > 0){
-        speed = speed*abs(amp_offset);
-      }
+        speed = speed + (amp_offset);
       digitalWrite(relais,LOW);
     }
 
@@ -98,6 +97,9 @@ void pwmfix(int PIN,int speed = 255){
     Serial.println(speed);
 }
 
+////////////////////////////////////////////
+// setup
+////////////////////////////////////////////
 void setup() { 
   // put your setup code here, to run once:
   pinMode(PWMpin1, OUTPUT);
@@ -124,40 +126,32 @@ void setup() {
   start_day = now.day();
 }
 
+
+////////////////////////////////////////////
+// LOOP ////////////////////////////////////
+////////////////////////////////////////////
+
 void loop() {
   DateTime now = rtc.now();
   if(!(now.day() == start_day & now.hour() == start_hour)){
     if((now.hour() - start_hour) % step_hours == 0 & marker == 1){
-      Amp = Amp + Amp_change;
+      amp_offset = amp_offset + amp_offset_change;
+      //Amp = Amp + Amp_change;
       marker = 0;
-      if(Amp > 255){
+            if(Amp > 255){
        Amp = 255;
-      }
-      if(Amp < -255){
-       Amp = -255;
       }
     }
   }
   if((now.hour() - start_hour) % step_hours != 0 & marker == 0){
     marker = 1;
   }
-
-  if(Amp < 0){
-    digitalWrite(relaispin1,HIGH);
-    digitalWrite(relaispin2,HIGH);
-    digitalWrite(relaispin3,HIGH);
-    digitalWrite(relaispin4,HIGH);
-  }else{
-    digitalWrite(relaispin1,LOW);
-    digitalWrite(relaispin2,LOW);
-    digitalWrite(relaispin3,LOW);
-    digitalWrite(relaispin4,LOW);
-  }
+  
   // speed must be a number between 0 and 255
-  pwmfix(PWMpin1,abs(Amp));
-  pwmfix(PWMpin2,abs(Amp));
-  pwmfix(PWMpin3,abs(Amp));
-  pwmfix(PWMpin4,abs(Amp));
+  pwmsinus(PWMpin1,relaispin1,T,0,amp_offset);
+  pwmsinus(PWMpin2,relaispin2,T,offset_2,amp_offset);
+  pwmsinus(PWMpin3,relaispin3,T,offset_3,amp_offset);
+  pwmsinus(PWMpin4,relaispin4,T,offset_4,amp_offset);
   
   //pwmfix(PWMpin1);
 

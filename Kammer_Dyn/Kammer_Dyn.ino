@@ -23,6 +23,8 @@ RTC_DS1307 rtc; //Defines the real Time Object
 // Pins variables ---------------------------------
 const int pin_kammer = 5;
 const int pin_dyn_kammer = 8;
+const int pin_ventil = 2;
+
 
 const int rx = 6;
 const int tx = 7;
@@ -91,10 +93,12 @@ void setup(){
   pinMode(chipSelect, OUTPUT);
   pinMode(pin_kammer, OUTPUT);
   pinMode(pin_dyn_kammer, OUTPUT);
+  pinMode(pin_ventil, OUTPUT);
   //pinMode(pin_test, OUTPUT);
 
   digitalWrite(pin_kammer,HIGH);
   digitalWrite(pin_dyn_kammer,LOW);
+  digitalWrite(pin_ventil,LOW);
   //digitalWrite(pin_test,HIGH);
 //SD -------------------------------------------------------
    #if ECHO_TO_SERIAL //if USB connection exists do the following:
@@ -189,6 +193,12 @@ void loop(){
     }
   }
 
+ }else{
+  digitalWrite(pin_ventil,LOW);
+  delay(1000);
+  digitalWrite(pin_ventil,HIGH);
+  delay(4000);
+    
  }
 }
 

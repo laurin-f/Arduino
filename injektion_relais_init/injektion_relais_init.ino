@@ -18,7 +18,7 @@ int pumpe_mins = 1; //how many minutes does the pump pump
 int counter = 0;//counts the initial measurements
 int meas = 0;//changes between 0 = Pump and 1 =  Measurement 
 int n_counts = 5;//number of initial measurements
-int t_init = 3;//minutes before first measurement
+int t_init = 0;//minutes before first measurement
 
 //Time
 RTC_DS1307 rtc; //Defines the real Time Object
