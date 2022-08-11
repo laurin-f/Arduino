@@ -8,24 +8,25 @@ RTC_Millis rtc; //Defines the real Time Object
 
 ////////////////////////////////////////////////////////////////////
 // hier den Offset und Amplitude und Periodendauer T einstellen
-float Amp_rel = 70;//100%
+float Amp_rel = 75;//100%
 //float Amp_change_rel = 10; // 10% mehr pro Stufe
-float amp_offset_change = -20; // 20% weniger pro Stufe
-int step_hours = 5; // Anzahl Stunden pro Amp Stufe
+float amp_offset_change_rel = -5; // 20% weniger pro Stufe
+int step_hours = 1; // Anzahl Stunden pro Amp Stufe
 int WS_soil = 0;
 float T = 60;//s
 float offset_2 = 10;//s
 float offset_3 = 20;//s
 float offset_4 = 30;//s
-float amp_offset = 0;
+float amp_offset_rel = 15;
 //float amp_offset2 = 1;
 //float amp_offset3 = 1;
 //float amp_offset4 = 1;
 /////////////////////////////////////////////////////////////////////
 //umrechnung
 
-float Amp = Amp_rel/100 * 255;
-//float Amp_change = Amp_change_rel/100 * 255;
+float Amp = round(Amp_rel/100 * 255);
+float amp_offset = round(amp_offset_rel/100 * 255);
+float amp_offset_change = round(amp_offset_change_rel/100 * 255);
 //andere Variablen
 int marker = 1;
 int start_day = 0;
@@ -67,7 +68,7 @@ void pwmsinus(int PIN,int relais,float period, float offset = 0, float amp_offse
     }
 
     if(speed <= 0){
-        speed = speed - (amp_offset);
+        speed = speed + (amp_offset);
       digitalWrite(relais,HIGH);
     }else{
         speed = speed + (amp_offset);

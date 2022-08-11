@@ -247,6 +247,10 @@ void loop(){
   }//relais_h
   }//if counter > n_counts
   }else{//sd.begin
+  digitalWrite(pin_ventil,LOW);
+  delay(1000);
+  digitalWrite(pin_ventil,HIGH);
+  delay(4000);
     Serial.print("No SD found");
   }
 }
