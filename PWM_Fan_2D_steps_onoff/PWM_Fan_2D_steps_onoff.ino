@@ -12,6 +12,7 @@ float Amp_rel = 60;//100%
 float Amp_change_rel = 20; // 20% weniger pro Stufe
 int step_hours = 6; // Anzahl Stunden pro Amp Stufe ACHTUNG mindestens 2 h sonst funktioniert der Code nicht
 int n_steps = 3; //Anzahl Stufen 
+int n_versuche = 2;
 int break_hours = 6; //Pause zwischen Versuchen
 int init_hours = 0; //Stunden bis zum Start des Programms
 int WS_soil = 0;
@@ -30,6 +31,8 @@ float Amp = Amp_rel/100 * 255;
 float Amp_change = Amp_change_rel/100 * 255;
 
 //andere Variablen
+
+int versuch_counter = 1;
 int marker = 1;
 int counter = 0;
 int start_day = 0;
@@ -140,6 +143,7 @@ void setup() {
 }
 
 void loop() {
+  if(versuch_counter <= n_versuche){
   DateTime now = rtc.now();
   if(!(now.day() == start_day & now.hour() == start_hour)){
     if((now.hour() - start_hour) % step_hours == 0 & marker == 1){
@@ -165,14 +169,19 @@ void loop() {
   //pwmfix(PWMpin1);
   delay(1000);
   //wenn n_steps PP Stufen durch sind wird mainpower ausgeschaltet und break_hours lang gewartet
-  if(counter > n_steps){
+  if(counter >= n_steps){
     digitalWrite(mainpower_relais,HIGH);
     counter = 0;
-    float Amp = Amp_rel/100 * 255;
+    versuch_counter++;
+    Amp = Amp_rel/100 * 255;
     delay(break_hours * HOUR);
     DateTime now = rtc.now();
     start_hour = now.hour();
     start_day = now.day();
     digitalWrite(mainpower_relais,LOW);
   }
+}else{
+  digitalWrite(mainpower_relais,HIGH);
+  delay(break_hours * HOUR);
+}
 }
