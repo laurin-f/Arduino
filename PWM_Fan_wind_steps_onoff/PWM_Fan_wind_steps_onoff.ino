@@ -8,13 +8,11 @@ RTC_Millis rtc; //Defines the real Time Object
 
 ////////////////////////////////////////////////////////////////////
 // hier den Offset und Amplitude und Periodendauer T einstellen
-float Amp_rel = 60;//100%
-float Amp_change_rel = 20; // 20% weniger pro Stufe
-int step_hours = 6; // Anzahl Stunden pro Amp Stufe ACHTUNG mindestens 2 h sonst funktioniert der Code nicht
-int n_steps = 3; //Anzahl Stufen 
-int n_versuche = 3;
-int break_hours = 6; //Pause zwischen Versuchen
-int init_hours = 18; //Stunden bis zum Start des Programms
+float Amp_rel = 100;//100%
+float Amp_change_rel = -34; // 20% weniger pro Stufe
+int n_steps = 5;
+int counter = 0;
+int step_hours = 1; // Anzahl Stunden pro Amp Stufe
 int WS_soil = 0;
 float T = 60;//s
 float offset_2 = 10;//s
@@ -24,17 +22,19 @@ float amp_offset1 = 1;
 float amp_offset2 = 1;
 float amp_offset3 = 1;
 float amp_offset4 = 1;
+
+int n_versuche = 3;
+int break_hours = 6; //Pause zwischen Versuchen
+int init_hours = 18; //Stunden bis zum Start des Programms
+int versuch_counter = 1;
 /////////////////////////////////////////////////////////////////////
 //umrechnung
 
-float Amp = Amp_rel/100 * 255;
-float Amp_change = Amp_change_rel/100 * 255;
+float Amp = round(Amp_rel/100 * 255);
+float Amp_change = round(Amp_change_rel/100 * 255);
 
 //andere Variablen
-
-int versuch_counter = 1;
 int marker = 1;
-int counter = 0;
 int start_day = 0;
 int start_hour = 0;
 const unsigned long SECOND = 1000;
@@ -57,48 +57,6 @@ const int mainpower_relais = 11;
 
 float speed;
 
-void pwmsinus(int PIN,int relais,float period, float offset = 0, float amp_offset = 1){
-    DateTime now = rtc.now();
-    float sec = now.second();
-    float m = now.minute();
-    float min_sec = m*60 + sec;
-    speed = Amp * sin((min_sec-offset)/period*2*PI) ;
-    float rel_time_2 = (min_sec-offset)/period*2 - floor((min_sec-offset)/period*2);
-    float rel_time = (min_sec-offset)/period - floor((min_sec-offset)/period);
-    if(rel_time_2 <= 0.5){
-      if(rel_time < 0.5){
-       speed = Amp;
-      }else{
-       speed = -Amp; 
-      }
-    }
-
-    if(speed <= 0){
-      if(amp_offset < 0){
-        speed = speed*abs(amp_offset);
-      }
-      digitalWrite(relais,HIGH);
-    }else{
-      if(amp_offset > 0){
-        speed = speed*abs(amp_offset);
-      }
-      digitalWrite(relais,LOW);
-    }
-
-
-
-    speed = abs(speed);
-    analogWrite(PIN, speed);
-    Serial.print("PIN: ");
-    Serial.print(PIN);
-    Serial.print(" Time: ");
-    Serial.print(m,0);
-    Serial.print(":");
-    Serial.print(sec,0);
-    Serial.print(" speed: ");
-    Serial.println(speed);
-    
-}
 void pwmfix(int PIN,int speed = 255){
 
     analogWrite(PIN, speed);
@@ -132,10 +90,9 @@ void setup() {
   Serial.begin(baudrate);
   // PWM Signal für Ventilatoren am Boden
   pwmfix(PWMpin5,WS_soil);
-  
+
   //warten bis gestartet wird falls init_hours > 0
   delay(init_hours * HOUR);
-  digitalWrite(mainpower_relais,LOW);
   
   DateTime now = rtc.now();
   start_hour = now.hour();
@@ -152,6 +109,9 @@ void loop() {
       if(Amp > 255){
        Amp = 255;
       }
+      if(Amp < 0){
+       Amp = 0;
+      }
       counter++;
     }
   }
@@ -161,16 +121,12 @@ void loop() {
 
 
   // speed must be a number between 0 and 255
-  pwmsinus(PWMpin1,relaispin1,T,0,amp_offset1);
-  pwmsinus(PWMpin2,relaispin2,T,offset_2,amp_offset2);
-  pwmsinus(PWMpin3,relaispin3,T,offset_3,amp_offset3);
-  pwmsinus(PWMpin4,relaispin4,T,offset_4,amp_offset4);
+  pwmfix(PWMpin5,abs(Amp));
   
   //pwmfix(PWMpin1);
+
   delay(1000);
-  //wenn n_steps PP Stufen durch sind wird mainpower ausgeschaltet und break_hours lang gewartet
   if(counter >= n_steps){
-    digitalWrite(mainpower_relais,HIGH);
     counter = 0;
     versuch_counter++;
     Amp = Amp_rel/100 * 255;
@@ -178,10 +134,9 @@ void loop() {
     DateTime now = rtc.now();
     start_hour = now.hour();
     start_day = now.day();
-    digitalWrite(mainpower_relais,LOW);
   }
 }else{
-  digitalWrite(mainpower_relais,HIGH);
+  pwmfix(PWMpin5,WS_soil);
   delay(break_hours * HOUR);
 }
 }

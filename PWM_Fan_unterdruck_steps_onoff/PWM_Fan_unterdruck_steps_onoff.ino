@@ -8,13 +8,11 @@ RTC_Millis rtc; //Defines the real Time Object
 
 ////////////////////////////////////////////////////////////////////
 // hier den Offset und Amplitude und Periodendauer T einstellen
-float Amp_rel = 60;//100%
-float Amp_change_rel = 20; // 20% weniger pro Stufe
-int step_hours = 6; // Anzahl Stunden pro Amp Stufe ACHTUNG mindestens 2 h sonst funktioniert der Code nicht
-int n_steps = 3; //Anzahl Stufen 
-int n_versuche = 3;
-int break_hours = 6; //Pause zwischen Versuchen
-int init_hours = 18; //Stunden bis zum Start des Programms
+float Amp_rel = 20;//100%
+float Amp_change_rel = -10; // 20% weniger pro Stufe
+int n_steps = 5;
+int counter = 0;
+int step_hours = 1; // Anzahl Stunden pro Amp Stufe
 int WS_soil = 0;
 float T = 60;//s
 float offset_2 = 10;//s
@@ -24,17 +22,19 @@ float amp_offset1 = 1;
 float amp_offset2 = 1;
 float amp_offset3 = 1;
 float amp_offset4 = 1;
+
+int n_versuche = 3;
+int break_hours = 6; //Pause zwischen Versuchen
+int init_hours = 18; //Stunden bis zum Start des Programms
+int versuch_counter = 1;
 /////////////////////////////////////////////////////////////////////
 //umrechnung
 
-float Amp = Amp_rel/100 * 255;
-float Amp_change = Amp_change_rel/100 * 255;
+float Amp = round(Amp_rel/100 * 255);
+float Amp_change = round(Amp_change_rel/100 * 255);
 
 //andere Variablen
-
-int versuch_counter = 1;
 int marker = 1;
-int counter = 0;
 int start_day = 0;
 int start_hour = 0;
 const unsigned long SECOND = 1000;
@@ -132,7 +132,7 @@ void setup() {
   Serial.begin(baudrate);
   // PWM Signal für Ventilatoren am Boden
   pwmfix(PWMpin5,WS_soil);
-  
+
   //warten bis gestartet wird falls init_hours > 0
   delay(init_hours * HOUR);
   digitalWrite(mainpower_relais,LOW);
@@ -152,6 +152,9 @@ void loop() {
       if(Amp > 255){
        Amp = 255;
       }
+      if(Amp < -255){
+       Amp = -255;
+      }
       counter++;
     }
   }
@@ -159,16 +162,26 @@ void loop() {
     marker = 1;
   }
 
-
+  if(Amp < 0){
+    digitalWrite(relaispin1,HIGH);
+    digitalWrite(relaispin2,HIGH);
+    digitalWrite(relaispin3,HIGH);
+    digitalWrite(relaispin4,HIGH);
+  }else{
+    digitalWrite(relaispin1,LOW);
+    digitalWrite(relaispin2,LOW);
+    digitalWrite(relaispin3,LOW);
+    digitalWrite(relaispin4,LOW);
+  }
   // speed must be a number between 0 and 255
-  pwmsinus(PWMpin1,relaispin1,T,0,amp_offset1);
-  pwmsinus(PWMpin2,relaispin2,T,offset_2,amp_offset2);
-  pwmsinus(PWMpin3,relaispin3,T,offset_3,amp_offset3);
-  pwmsinus(PWMpin4,relaispin4,T,offset_4,amp_offset4);
+  pwmfix(PWMpin1,abs(Amp));
+  pwmfix(PWMpin2,abs(Amp));
+  pwmfix(PWMpin3,abs(Amp));
+  pwmfix(PWMpin4,abs(Amp));
   
   //pwmfix(PWMpin1);
+
   delay(1000);
-  //wenn n_steps PP Stufen durch sind wird mainpower ausgeschaltet und break_hours lang gewartet
   if(counter >= n_steps){
     digitalWrite(mainpower_relais,HIGH);
     counter = 0;
